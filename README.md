@@ -43,9 +43,22 @@ Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports 
 ## Browser Models
 
 Models are stored **in your browser**, not on this machine:
-- **Chromium/Chrome**: DevTools → Application → IndexedDB → delete `mlc-webllm-*` databases
-- **Firefox**: DevTools → Storage → IndexedDB → delete `mlc-webllm-*` databases
-- **Browser cache**: Clear site data for the deployed site
+
+### Windows (Edge / Chrome)
+- **IndexedDB**: Open DevTools (F12) → Application → IndexedDB → delete any `mlc-webllm-*` databases
+- **Cache**: `edge://settings/clearBrowserData` → Advanced → **Cached images and files** → Clear
+- **Model files**: Search your `AppData\Local\Temp\` and `AppData\Local` folders for `mlc-webllm` — this is where the actual model files live
+- **Quick clear**: Search for `mlc-webllm` in File Explorer and delete any folders found
+
+### Mac
+- **IndexedDB**: Open DevTools (F12) → Application → IndexedDB → delete `mlc-webllm-*` databases
+- **Cache**: `chrome://settings/clearBrowserData` → Advanced → **Cached images and files** → Clear
+- **Model files**: Search `~/Library/Caches` for `mlc-webllm`
+
+### Linux
+- **IndexedDB**: Open DevTools (F12) → Storage → IndexedDB → delete `mlc-webllm-*` databases
+- **Cache**: `chrome://settings/clearBrowserData` → Advanced → **Cached images and files** → Clear
+- **Model files**: Search `~/.cache` for `mlc-webllm`
 
 To free disk space, use the model picker in the hero to download smaller models (SmolLM2 135M = 0.3GB).
 Each downloaded model stays until you clear the browser's IndexedDB cache.
