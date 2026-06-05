@@ -1,51 +1,31 @@
-# Locally Hosted
+# Locally Hosted — AI Video Episodes
 
-AI-generated video episodes with transcripts. Running entirely on local hardware.
+> **AI-generated video episodes with transcripts. Running entirely on local hardware.**
 
-## Try It Live
+## Live Demo
 
-🌐 **[ryanstorandt.github.io/locally-hosted/](https://ryanstorandt.github.io/locally-hosted/)** — Browse episodes and chat with the AI assistant.
+Visit the site: [ryanstorandt.github.io/locally-hosted](https://ryanstorandt.github.io/locally-hosted/)
 
-## AI Agent (In-Browser)
+## Features
 
-This site ships with a **fully browser-native AI assistant** powered by [WebLLM](https://github.com/mlc-ai/web-llm).
-
-- **No API keys** — everything runs in your browser using your GPU
-- **No cloud** — your conversations never leave your device
-- **WebGPU-accelerated** — uses Phi-3.5-mini-instruct (~2GB, downloads once)
-- **Privacy-first** — zero telemetry, zero external API calls
+- **AI Agent** — In-browser AI assistant powered by WebLLM with model picker (SmolLM2, TinyLlama, Gemma3, Llama 3.2)
+- **Model Picker** — Choose from 5 models under 1GB VRAM (SmolLM2 135M/360M, TinyLlama 1.1B, Gemma3 1B, Llama 3.2 1B)
+- **WebGPU-accelerated** — Runs entirely in your browser, no API keys needed
 - **Works offline** after first model download
+- **Podcast Wiki** — Browse episodes with table/cards view, suggest topics via GitHub Discussions
 
 Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports WebGPU, simply open the site and start chatting — the model downloads in the background.
 
-## What is this?
-
-Each episode is a video created from an article or GitHub repo, with:
-- **AI-generated video** scenes (CogVideoX on local GPU)
-- **Podcast-style narration** (local TTS)
-- **Full transcript** for accessibility
-- **YouTube embed** when available
-- **Audio-only** version for listening on the go
-
-## How it works
-
-1. Articles from [arXiv](https://arxiv.org/), [GitHub Trending](https://github.com/trending), [Hacker News](https://news.ycombinator.com/), etc. are fetched
-2. Content is analyzed and broken into video scenes with AI-generated visuals
-3. A podcast script is written and converted to speech locally
-4. The final video + audio + transcript are published here
-
 ## Tech Stack
 
-- **Video generation**: CogVideoX (local NVIDIA GPU)
-- **Text-to-speech**: VibeVoice / Edge TTS (local)
-- **LLM processing**: Local models for script generation
-- **In-browser AI**: [WebLLM](https://github.com/mlc-ai/web-llm) + Phi-3.5-mini-instruct (WebGPU)
-- **Hosting**: GitHub Pages
+- **Web App**: Static GitHub Pages (HTML/CSS/JS)
+- **In-browser AI**: [WebLLM](https://github.com/mlc-ai/web-llm) + model picker (SmolLM2, TinyLlama, Gemma3, Llama 3.2)
+- **Video Pipeline**: [ai-video-pipeline](https://github.com/ryanstorandt/ai-video-pipeline) — NVIDIA DGX Spark
+- **AI Video Generation**: CogVideoX-2B, ComfyUI, MoneyPrinterTurbo
+- **Voice**: Edge TTS (Azure TTS)
+- **Episode List**: [episodes.json](episodes.json)
 
-## Source
+## Contributing
 
-Built with the [Local Video Pipeline](https://github.com/ryanstorandt/ai-video-pipeline)
-
----
-
-*All content generated locally. No cloud APIs used for content creation.*
+- **Add an episode**: Edit [episodes.json](episodes.json) → submit a pull request
+- **Suggest a topic**: Open a [GitHub Discussion](https://github.com/ryanstorandt/locally-hosted/discussions)
