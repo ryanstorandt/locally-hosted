@@ -1608,3 +1608,29 @@ a:hover {
         right: var(--space-lg);
     }
 }
+
+/* Model Picker */
+.model-picker {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.7rem;
+    padding: 4px 6px;
+    cursor: pointer;
+    max-width: 140px;
+    transition: border-color var(--transition);
+}
+
+.model-picker:hover,
+.model-picker:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.model-picker option {
+    background: var(--surface-dark);
+    color: var(--text);
+    font-size: 0.75rem;
+    padding: 4px;
+}
