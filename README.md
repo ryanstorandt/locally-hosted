@@ -40,6 +40,16 @@ Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports 
 - **LLM**: [Ollama](https://github.com/ollama/ollama) / [Qwen3](https://github.com/QwenLM/Qwen) — local prompt generation for scene descriptions and scripts
 - **Episode List**: [episodes.json](episodes.json)
 
+## Browser Models
+
+Models are stored **in your browser**, not on this machine:
+- **Chromium/Chrome**: DevTools → Application → IndexedDB → delete `mlc-webllm-*` databases
+- **Firefox**: DevTools → Storage → IndexedDB → delete `mlc-webllm-*` databases
+- **Browser cache**: Clear site data for the deployed site
+
+To free disk space, use the model picker in the hero to download smaller models (SmolLM2 135M = 0.3GB).
+Each downloaded model stays until you clear the browser's IndexedDB cache.
+
 ## Contributing
 
 - **Add an episode**: Edit [episodes.json](episodes.json) → submit a pull request

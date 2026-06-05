@@ -33,7 +33,7 @@
                         <span class="model-badge" id="modelBadge"></span>
                         <span class="model-badge" id="webGPUBadge"></span>
                         <select id="modelPicker" class="model-picker" title="Choose a model (under 1GB)">
-                            <option value="SmolLM2-135M-Instruct-q0f16-MLC">SmolLM2 135M (0.3GB)</option>
+                            <option value="SmolLM2-135M-Instruct-q0f16-MLC" selected>SmolLM2 135M (0.3GB)</option>
                             <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M (0.4GB)</option>
                             <option value="TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama 1.1B (0.7GB)</option>
                             <option value="gemma3-1b-it-q4f16_1-MLC">Gemma3 1B (0.7GB)</option>
@@ -471,7 +471,7 @@
     const webllm = await import("https://esm.run/@mlc-ai/web-llm");
     (async function() {
         let SYSTEM_PROMPT = 'You are a helpful AI assistant.'; // Default fallback
-        let currentModel = 'Phi-3.5-mini-instruct-q4f16_1-MLC';
+        let currentModel = 'SmolLM2-135M-Instruct-q0f16-MLC';
         
         // Load system instructions from .md file
         try {
@@ -559,10 +559,10 @@
             
             if (webGPUBadge) { webGPUBadge.textContent = 'WebGPU: ✓'; webGPUBadge.style.color = 'var(--success)'; }
             
-            const MODEL_ID = 'Phi-3.5-mini-instruct-q4f16_1-MLC';
+            const MODEL_ID = 'SmolLM2-135M-Instruct-q0f16-MLC';
             if (modelBadge) modelBadge.textContent = MODEL_ID;
-            updateHeroStatus('loading', 'Downloading model (~2GB)...');
-            if (agentLoading) { const p = agentLoading.querySelector('p'); if (p) p.textContent = 'Downloading model (~2GB)...'; }
+            updateHeroStatus('loading', 'Downloading model (~300MB)...');
+            if (agentLoading) { const p = agentLoading.querySelector('p'); if (p) p.textContent = 'Downloading model (~300MB)...'; }
             
             engine = await webllm.CreateMLCEngine(
                 MODEL_ID,
