@@ -259,6 +259,30 @@ a:hover {
     50% { background-position: 100% center; }
 }
 
+/* Title sweep/pulse effect */
+.hero-title-gradient::before {
+    content: ""; 
+    position: absolute; 
+    top: 0; 
+    left: -100%; 
+    width: 60%; 
+    height: 100%; 
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); 
+    mix-blend-mode: overlay; 
+    animation: textSweep 4s ease-in-out infinite; 
+}
+
+.hero-title-gradient {
+    position: relative; 
+    display: inline-block; 
+}
+
+@keyframes textSweep {
+    0%, 100% { left: -100%; opacity: 0; } 
+    10%, 90% { opacity: 1; } 
+    50% { left: 150%; } 
+}
+
 .hero-description {
     font-size: 1.15rem;
     color: var(--ink-light);
