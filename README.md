@@ -16,7 +16,7 @@ Submit a tech article (arXiv paper, GitHub repo, blog post, Hacker News) and the
 2. **Generates scene prompts** via local LLM (Ollama/Qwen3) — cinematic descriptions
 3. **Generates a 2-host podcast script** (host + expert dialogue) with intro/outro branding
 4. **Generates video clips** via CogVideoX (2B, 5B, or 1.5-5B) — 6 sec per scene
-5. **Generates podcast audio** via edge-tts with broadcast-standard mastering (-16 LUFS)
+5. **Generates podcast audio** via Microsoft VibeVoice (local neural TTS with voice cloning) + broadcast mastering (-16 LUFS)
 6. **Generates closed captions** (SRT) with per-speaker timestamps
 7. **Merges** everything into a YouTube-ready episode with thumbnail, metadata, and shorts clip
 
@@ -36,7 +36,7 @@ Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports 
 - **In-browser AI**: [WebLLM](https://github.com/mlc-ai/web-llm) + model picker (SmolLM2, TinyLlama, Gemma3, Llama 3.2)
 - **Video Pipeline**: [ai-video-pipeline](https://github.com/ryanstorandt/ai-video-pipeline) — NVIDIA DGX Spark
 - **AI Video Generation**: CogVideoX (2B, 5B, or 1.5-5B) — local Docker container
-- **Voice Synthesis**: edge-tts with broadcast mastering + podcast audio generation
+- **Voice Synthesis**: Microsoft VibeVoice (local neural TTS with voice cloning) + broadcast mastering (-16 LUFS)
 - **LLM**: Ollama/Qwen3 — local prompt generation for scene descriptions and scripts
 - **Episode List**: [episodes.json](episodes.json)
 
