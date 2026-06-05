@@ -53,7 +53,7 @@
                         <span class="hero-badge-dot"></span>
                         AI-powered, runs in your browser — no API keys, no cloud
                     </div>
-                    <p class="agent-greeting-text" id="agentGreetingText">Ask me anything about your episodes, topics, or research.</p>
+                    <p class="agent-greeting-text" id="agentGreetingText">Ask me about our AI/tech episodes, trending topics, or the repo.</p>
                     <div class="suggestions-row">
                         <button class="suggestion-chip" data-query="What episodes do I have?">📺 Episodes</button>
                         <button class="suggestion-chip" data-query="Show me my latest content">🆕 Latest</button>
@@ -66,7 +66,7 @@
                     <svg class="agent-chat-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
-                    <textarea id="agentChatInput" class="agent-chat-input" placeholder="Ask about your episodes, topics, or research..." rows="1" disabled autocomplete="off"></textarea>
+                    <textarea id="agentChatInput" class="agent-chat-input" placeholder="Ask about our AI/tech episodes, trending topics..." rows="1" disabled autocomplete="off"></textarea>
                     <button id="agentChatSend" class="agent-chat-send" disabled aria-label="Send">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>
@@ -431,7 +431,7 @@
                 
                 if (allEpisodes.length === 0) {
                     document.getElementById('agentGreetingText').textContent = 'No episodes yet — ask about topics or research.';
-                    document.getElementById('agentChatInput').placeholder = 'Ask about topics or research...';
+                    document.getElementById('agentChatInput').placeholder = 'Ask about AI/tech episodes, trending topics...';
                     document.getElementById('episodesGrid').innerHTML = '';
                     document.getElementById('emptyState').style.display = 'block';
                     document.getElementById('emptyState').querySelector('.empty-state-title').textContent = 'No episodes published yet';
@@ -602,7 +602,7 @@
             if (suggestionsEl) suggestionsEl.style.display = 'none';
             
             // Welcome message
-            addChatMessage('assistant', '⚡ Model loaded! Ask me about your episodes, topics, or the repo. Keep it short and snappy!');
+            addChatMessage('assistant', '⚡ Model loaded! Ask me about our AI/tech episodes, trending topics, or the repo. Keep it short and snappy!');
             
         } catch (e) {
             updateHeroStatus('error', e.message);
