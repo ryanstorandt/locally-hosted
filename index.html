@@ -267,7 +267,7 @@
                             <span class="episode-date">${date}</span>
                             <span class="episode-id">#${ep.id}</span>
                         </div>
-                        <h3 class="episode-title"><a href="./episodes/${ep.id}/">${ep.title}</a></h3>
+                        <h3 class="episode-title"><a href="./episodes/index.html?id=${ep.id}">${ep.title}</a></h3>
                         ${ep.description ? `<p class="episode-description">${ep.description.substring(0, 120)}${ep.description.length > 120 ? '...' : ''}</p>` : ''}
                         <div class="card-footer">
                             <div class="card-tags">${renderTags(ep.tags)}</div>
@@ -411,7 +411,7 @@
             return episodes.map(ep => `
                 <tr data-id="${ep.id}">
                     <td class="col-title">
-                        <a href="./episodes/${ep.id}/" class="col-title-link">${ep.title}</a>
+                        <a href="./episodes/index.html?id=${ep.id}" class="col-title-link">${ep.title}</a>
                         ${ep.description ? `<span class="col-desc">${ep.description.substring(0, 80)}${ep.description.length > 80 ? '…' : ''}</span>` : ''}
                     </td>
                     <td>${ep.source_url ? `<a href="${ep.source_url}" target="_blank" rel="noopener noopener" class="col-link">Source ↗</a>` : '<span class="col-empty">—</span>'}</td>
@@ -458,7 +458,7 @@
                 
                 // Full detail for explicit episode queries
                 window.__episodeFull = allEpisodes.map(ep => {
-                    const url = `https://ryanstorandt.github.io/locally-hosted/episodes/${ep.id}/`;
+                    const url = `https://ryanstorandt.github.io/locally-hosted/episodes/index.html?id=${ep.id}`;
                     return `#${ep.id} | ${ep.title} | ${ep.description?.substring(0, 60) || ''} | ${ep.tags?.join(',') || 'n/a'} | ${url}`;
                 }).join('\n');
                 
