@@ -453,19 +453,6 @@
         loadEpisodes();
     </script>
 
-    <!-- == AI Agent Status (hidden once model loaded) == -->
-    <div class="ai-agent-status" id="agentStatus">
-        <div class="ai-agent-loading" id="agentLoading">
-            <div class="loading-dot"></div>
-            <p>Downloading AI model (~2GB)... This happens once, then it's instant.</p>
-            <div class="progress-bar futuristic">
-                <div class="fill"></div>
-            </div>
-        </div>
-    </div>
-
-    
-    
     <script type="module">
     // == AI Agent with WebLLM ==
     const webllm = await import("https://esm.run/@mlc-ai/web-llm");
@@ -496,9 +483,6 @@
         const agentGreeting = document.getElementById('agentGreeting') || document.querySelector('.agent-greeting');
         const agentChatMessages = document.getElementById('agentChatMessages');
         const suggestionsEl = document.getElementById('agentSuggestions');
-        
-        // Loading
-        const agentLoading = document.getElementById('agentLoading');
         
         // Model status badges
         const modelStatusDot = document.getElementById('modelStatusDot');
@@ -549,7 +533,6 @@
         
         // Initialize WebLLM
         updateHeroStatus('loading', 'Loading AI model...');
-        if (agentLoading) { const p = agentLoading.querySelector('p'); if (p) p.textContent = 'Loading AI model...'; }
         
         try {
             if (!navigator.gpu) throw new Error('WebGPU not supported. Try Chrome 113+ or Edge 113+.');
@@ -562,14 +545,12 @@
             const MODEL_ID = 'SmolLM2-135M-Instruct-q0f16-MLC';
             if (modelBadge) modelBadge.textContent = MODEL_ID;
             updateHeroStatus('loading', 'Downloading model (~300MB)...');
-            if (agentLoading) { const p = agentLoading.querySelector('p'); if (p) p.textContent = 'Downloading model (~300MB)...'; }
             
             engine = await webllm.CreateMLCEngine(
                 MODEL_ID,
                 { initProgressCallback: (msg) => {
                     if (msg.text) {
                         updateHeroStatus('loading', `Loading: ${msg.text}`);
-                        if (agentLoading) { const p = agentLoading.querySelector('p'); if (p) p.textContent = msg.text; }
                     }
                 }},
                 'webgpu'
@@ -599,8 +580,6 @@
             if (mbadges) mbadges.style.display = 'flex';
             updateHeroStatus('ready', 'AI ready');
             
-            // Hide loading, show greeting, hide suggestions
-            if (agentLoading) agentLoading.style.display = 'none';
             if (agentGreeting) agentGreeting.style.display = 'none';
             if (suggestionsEl) suggestionsEl.style.display = 'none';
             
@@ -609,11 +588,6 @@
             
         } catch (e) {
             updateHeroStatus('error', e.message);
-            if (agentLoading) {
-                const p2 = agentLoading.querySelector('p');
-                if (p2) p2.textContent = `⚠️ ${e.message}`;
-                agentLoading.style.display = 'flex';
-            }
         }
         
         // Model picker — switch models (requires reload)
@@ -637,11 +611,6 @@
                 currentModel = newModel;
                 if (modelBadge) modelBadge.textContent = `Loading ${newModel.split('-q4')[0]}...`;
                 updateHeroStatus('loading', `Downloading ${newModel} (~${Math.round(parseInt(newModel) * 0.001)}GB)...`);
-                if (agentLoading) {
-                    const p3 = agentLoading.querySelector('p');
-                    if (p3) p3.textContent = `Downloading AI model (~${Math.round(parseInt(newModel) * 0.001)}GB)... This happens once, then it's instant.`;
-                    agentLoading.style.display = 'flex';
-                }
                 
                 // Re-load the new model
                 try {
@@ -651,7 +620,6 @@
                         { initProgressCallback: (msg) => {
                             if (msg.text) {
                                 updateHeroStatus('loading', `Loading: ${msg.text}`);
-                                if (agentLoading) { const p4 = agentLoading.querySelector('p'); if (p4) p4.textContent = msg.text; }
                             }
                         }},
                         'webgpu'
@@ -665,7 +633,6 @@
                     if (mb) { mb.innerHTML = `✓ ${newModel.split('-q4')[0]} ready`; mb.style.color = 'var(--success)'; }
                     updateHeroStatus('ready', 'AI ready');
                     
-                    if (agentLoading) agentLoading.style.display = 'none';
                     addChatMessage('assistant', `⚡ Model switched! Now using ${newModel.split('-q4')[0]}. Ready — ask me anything!`);
                     
                 } catch (err) {
