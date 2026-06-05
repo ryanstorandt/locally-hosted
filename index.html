@@ -99,15 +99,46 @@
     </div>
 
     <main class="container">
-        <!-- Episodes grid -->
+        <!-- Episodes section -->
         <section class="episodes-section">
             <div class="episodes-section-header">
                 <h2 class="episodes-section-title">
                     <span class="title-line">Published Episodes</span>
                     <span class="title-count" id="episodeCountInline">0 episodes</span>
                 </h2>
+                <div class="episodes-controls">
+                    <button class="view-toggle" id="viewToggle" title="Toggle between table and card views">
+                        <svg class="icon-table" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>
+                        </svg>
+                        <svg class="icon-cards" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                        </svg>
+                        <span class="toggle-label">Table</span>
+                    </button>
+                </div>
             </div>
-            <div id="episodesGrid" class="episodes-grid"></div>
+            
+            <!-- Table view -->
+            <div id="episodesTableWrap" class="episodes-table-wrap">
+                <table class="episodes-table" id="episodesTable">
+                    <thead>
+                        <tr>
+                            <th class="col-title">Title</th>
+                            <th class="col-source">Source</th>
+                            <th class="col-yt-short">YouTube Short</th>
+                            <th class="col-yt-full">YouTube Full</th>
+                            <th class="col-spotify">Spotify</th>
+                        </tr>
+                    </thead>
+                    <tbody id="episodesTableBody">
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Card view (same as current grid, hidden by default) -->
+            <div id="episodesGrid" class="episodes-grid" style="display:none;"></div>
+            
             <div id="emptyState" class="empty-state" style="display:none;">
                 <div class="empty-state-icon">
                     <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -116,6 +147,42 @@
                 </div>
                 <h3 class="empty-state-title">No episodes found</h3>
                 <p class="empty-state-text">Try a different search or check back when more content is published.</p>
+            </div>
+        </section>
+        
+        <!-- CTAs -->
+        <section class="cta-section">
+            <div class="cta-grid">
+                <div class="cta-card">
+                    <div class="cta-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                    </div>
+                    <h3 class="cta-title">Add an Episode</h3>
+                    <p class="cta-desc">Edit <code>episodes.json</code> in the repo and submit a pull request.</p>
+                    <a href="https://github.com/ryanstorandt/locally-hosted/edit/main/episodes.json" target="_blank" rel="noopener" class="cta-button">
+                        Edit episodes.json
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
+                <div class="cta-card cta-card--highlight">
+                    <div class="cta-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="cta-title">Suggest a Topic</h3>
+                    <p class="cta-desc">Have an idea for an episode? Open a Discussion and we'll consider it.</p>
+                    <a href="https://github.com/ryanstorandt/locally-hosted/discussions" target="_blank" rel="noopener" class="cta-button">
+                        Open Discussion
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
             </div>
         </section>
     </main>
@@ -148,6 +215,7 @@
         let allEpisodes = [];
         let activeFilter = 'all';
         let searchQuery = '';
+        let viewMode = 'table'; // 'table' or 'cards'
 
         // Colors for tags
         const TAG_COLORS = {
@@ -217,22 +285,34 @@
 
         function renderEpisodes(episodes) {
             const grid = document.getElementById('episodesGrid');
+            const tableBody = document.getElementById('episodesTableBody');
+            const tableWrap = document.getElementById('episodesTableWrap');
             const empty = document.getElementById('emptyState');
             
             if (episodes.length === 0) {
                 grid.innerHTML = '';
                 empty.style.display = 'block';
+                if (tableBody) tableBody.innerHTML = '';
                 return;
             }
             
             empty.style.display = 'none';
-            grid.innerHTML = episodes.map(ep => renderEpisodeCard(ep)).join('');
             
-            // Animate cards in
-            grid.querySelectorAll('.episode-card').forEach((card, i) => {
-                card.style.animationDelay = `${i * 0.05}s`;
-                card.classList.add('card-enter');
-            });
+            if (viewMode === 'table') {
+                grid.style.display = 'none';
+                tableWrap.style.display = 'block';
+                tableBody.innerHTML = renderTableRows(episodes);
+            } else {
+                tableWrap.style.display = 'none';
+                grid.style.display = 'grid';
+                grid.innerHTML = episodes.map(ep => renderEpisodeCard(ep)).join('');
+                
+                // Animate cards in
+                grid.querySelectorAll('.episode-card').forEach((card, i) => {
+                    card.style.animationDelay = `${i * 0.05}s`;
+                    card.classList.add('card-enter');
+                });
+            }
         }
 
         function updateStats(episodes) {
@@ -298,6 +378,54 @@
             document.getElementById('searchClear').style.display = 'none';
             filterAndSearch();
         });
+
+        // View toggle (table / cards)
+        const viewToggle = document.getElementById('viewToggle');
+        if (viewToggle) {
+            function updateToggleLabel() {
+                const label = viewToggle.querySelector('.toggle-label');
+                label.textContent = viewMode === 'table' ? 'Cards' : 'Table';
+            }
+            updateToggleLabel();
+            viewToggle.addEventListener('click', () => {
+                viewMode = viewMode === 'table' ? 'cards' : 'table';
+                updateToggleLabel();
+                filterAndSearch();
+            });
+        }
+
+        // Table rendering helpers
+        function ytThumb(youtubeUrl) {
+            if (!youtubeUrl) return '';
+            const id = youtubeUrl.split('v=')[1]?.split(/[&?]/)[0];
+            return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : '';
+        }
+
+        function ytLink(url, label) {
+            if (!url) return '<span class="col-empty">—</span>';
+            return `<a href="${url}" target="_blank" rel="noopener noopener" class="col-link col-link-yt">${label}</a>`;
+        }
+
+        function spotifyLink(url) {
+            if (!url) return '<span class="col-empty">—</span>';
+            return `<a href="${url}" target="_blank" rel="noopener noopener" class="col-link col-link-spotify">Open ↗</a>`;
+        }
+
+        function renderTableRows(episodes) {
+            if (episodes.length === 0) return '';
+            return episodes.map(ep => `
+                <tr data-id="${ep.id}">
+                    <td class="col-title">
+                        <a href="./episodes/${ep.id}/" class="col-title-link">${ep.title}</a>
+                        ${ep.description ? `<span class="col-desc">${ep.description.substring(0, 80)}${ep.description.length > 80 ? '…' : ''}</span>` : ''}
+                    </td>
+                    <td>${ep.source_url ? `<a href="${ep.source_url}" target="_blank" rel="noopener noopener" class="col-link">Source ↗</a>` : '<span class="col-empty">—</span>'}</td>
+                    <td>${ytThumb(ep.youtube_short_url) ? `<a href="${ep.youtube_short_url}" target="_blank" rel="noopener noopener" class="col-link col-link-yt-mini"><img src="${ytThumb(ep.youtube_short_url)}" alt="YT Short thumbnail" class="col-thumb col-thumb-sm">Short</a>` : '<span class="col-empty">—</span>'}</td>
+                    <td>${ytThumb(ep.youtube_url) ? `<a href="${ep.youtube_url}" target="_blank" rel="noopener noopener" class="col-link col-link-yt-mini"><img src="${ytThumb(ep.youtube_url)}" alt="YT Full thumbnail" class="col-thumb col-thumb-sm">Full</a>` : '<span class="col-empty">—</span>'}</td>
+                    <td>${spotifyLink(ep.spotify_url)}</td>
+                </tr>
+            `).join('');
+        }
 
         // Load episodes
         async function loadEpisodes() {
