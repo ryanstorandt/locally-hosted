@@ -53,7 +53,7 @@
                         <span class="hero-badge-dot"></span>
                         AI-powered, runs in your browser — no API keys, no cloud
                     </div>
-                    <p class="agent-greeting-text">Ask me anything about your episodes, topics, or research.</p>
+                    <p class="agent-greeting-text" id="agentGreetingText">Ask me anything about your episodes, topics, or research.</p>
                     <div class="suggestions-row">
                         <button class="suggestion-chip" data-query="What episodes do I have?">📺 Episodes</button>
                         <button class="suggestion-chip" data-query="Show me my latest content">🆕 Latest</button>
@@ -430,6 +430,8 @@
                 allEpisodes = await resp.json();
                 
                 if (allEpisodes.length === 0) {
+                    document.getElementById('agentGreetingText').textContent = 'No episodes yet — ask about topics or research.';
+                    document.getElementById('agentChatInput').placeholder = 'Ask about topics or research...';
                     document.getElementById('episodesGrid').innerHTML = '';
                     document.getElementById('emptyState').style.display = 'block';
                     document.getElementById('emptyState').querySelector('.empty-state-title').textContent = 'No episodes published yet';
@@ -439,6 +441,27 @@
                 
                 updateFilterTabs([...allEpisodes]);
                 renderEpisodes([...allEpisodes].sort((a, b) => new Date(b.published_at) - Date(a.published_at)));
+                
+                // Inject minimal episode summary into agent greeting
+                const count = allEpisodes.length;
+                const summary = allEpisodes.map(ep => {
+                    const shortId = ep.id.replace(/\D/g, '').substring(0, 3);
+                    return `#${shortId}|${ep.title}|${(ep.tags||[]).join(',')}`;
+                }).join(' | ');
+                
+                const greetingText = document.getElementById('agentGreetingText');
+                if (greetingText) {
+                    greetingText.textContent = count === 1 ? '1 episode loaded — ask me anything!' : `${count} episodes loaded — ask me anything!`;
+                }
+                if (window.__episodeSummary) window.__episodeSummary += ' | ' + summary;
+                else window.__episodeSummary = summary;
+                
+                // Full detail for explicit episode queries
+                window.__episodeFull = allEpisodes.map(ep => {
+                    const url = `https://ryanstorandt.github.io/locally-hosted/episodes/${ep.id}/`;
+                    return `#${ep.id} | ${ep.title} | ${ep.description?.substring(0, 60) || ''} | ${ep.tags?.join(',') || 'n/a'} | ${url}`;
+                }).join('\n');
+                
             } catch (e) {
                 document.getElementById('episodesGrid').innerHTML = 
                     `<p class="empty-state" style="color:var(--danger);">Error loading episodes: ${e.message}</p>`;
@@ -462,6 +485,9 @@
         } catch (e) {
             console.warn('Could not load system-instructions.md, using default prompt');
         }
+        
+        // Append minimal episode summary (populated by loadEpisodes in parallel)
+        if (window.__episodeSummary) SYSTEM_PROMPT += '\nEPISODES: ' + window.__episodeSummary;
         
         let messages = [];
         let engine = null;
@@ -672,8 +698,17 @@
             updateHeroStatus('loading', 'Generating...');
             
             try {
+                // Build base system message
+                let sysMsg = { role: 'system', content: SYSTEM_PROMPT };
+                
+                // Dynamic full episode context on explicit queries
+                const query = userText.toLowerCase();
+                if (/episode|topics|list|show.*ep|what do i have|what do you have/i.test(query) && window.__episodeFull) {
+                    sysMsg.content += '\nEPISODES DETAIL:\n' + window.__episodeFull;
+                }
+                
                 const completion = await engine.chat.completions.create({
-                    messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
+                    messages: [sysMsg, ...messages],
                     temperature: 0.7, max_tokens: 200, stream: true
                 });
                 
