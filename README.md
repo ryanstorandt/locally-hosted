@@ -45,10 +45,10 @@ Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports 
 ## Adding episodes
 
 Episode metadata lives in [episodes.json](episodes.json). You don't write it by
-hand — generate a record straight from the YouTube link with the included script
-(no API key, no dependencies; it scrapes the public watch page for title,
-description, tags, and publish date, then cleans them the same way the catalog
-was built):
+hand — after posting a video, run the included script **locally** and it scrapes
+the YouTube watch page for the title, description, tags, and publish date, cleans
+them the same way the catalog was built, and appends the record. Then commit and
+open a PR yourself.
 
 ```bash
 # Append a new episode (prepended newest-first, id auto-incremented)
@@ -62,10 +62,9 @@ node scripts/add-episode.mjs "https://youtu.be/VIDEO_ID" --dry
 Options: `--short <url>`, `--spotify <url>`, `--source <url>` (override the
 auto-detected source link), `--dry` (print only), `--json <path>`.
 
-**Or fully hands-off:** run the **Add episode** GitHub Action
-(Actions tab → *Add episode* → *Run workflow*), paste the YouTube URL, and it
-appends to `episodes.json` and commits for you — GitHub Pages redeploys with the
-new episode. See [.github/workflows/add-episode.yml](.github/workflows/add-episode.yml).
+> Run it from your normal network connection. YouTube blocks scraping from
+> datacenter IPs (VPNs, cloud/CI runners) with a "confirm you're not a bot"
+> check, so this is intentionally a local script, not a GitHub Action.
 
 ## Browser Models
 
