@@ -807,7 +807,10 @@
         // Unified send function — the ONLY way to send messages now
         async function sendAgentMessage(text) {
             if (!heroInput || !modelLoaded) return;
-            const input = text || heroInput.value.trim();
+            // `text` is only a real message when passed explicitly (chips, pending, retry).
+            // When used as an event listener the click Event is passed, so ignore non-strings.
+            const provided = typeof text === 'string' ? text.trim() : '';
+            const input = provided || heroInput.value.trim();
             if (!input) return;
             
             // Stop any in-flight speech or dictation before sending
@@ -904,7 +907,7 @@
         }
         
         // Event listeners — hero only now
-        if (heroSend) heroSend.addEventListener('click', sendAgentMessage);
+        if (heroSend) heroSend.addEventListener('click', () => sendAgentMessage());
         if (heroInput) heroInput.addEventListener('keydown', (e) => { 
             if (e.key === 'Enter' && !e.shiftKey) { 
                 e.preventDefault(); 
