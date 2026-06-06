@@ -33,11 +33,11 @@
                         <span class="model-badge" id="modelBadge"></span>
                         <span class="model-badge" id="webGPUBadge"></span>
                         <select id="modelPicker" class="model-picker" title="Choose a model (under 1GB)">
-                            <option value="SmolLM2-135M-Instruct-q0f16-MLC" selected>SmolLM2 135M (0.3GB)</option>
+                            <option value="SmolLM2-135M-Instruct-q0f16-MLC">SmolLM2 135M (0.3GB)</option>
                             <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M (0.4GB)</option>
                             <option value="TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama 1.1B (0.7GB)</option>
                             <option value="gemma3-1b-it-q4f16_1-MLC">Gemma3 1B (0.7GB)</option>
-                            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B (0.9GB)</option>
+                            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC" selected>Llama 3.2 1B (0.9GB)</option>
                         </select>
                     </div>
                 </div>
@@ -54,7 +54,7 @@
                         AI-powered, runs in your browser — no API keys, no cloud
                     </div>
                     <p class="agent-greeting-text" id="agentGreetingText">Ask me about our AI/tech episodes, trending topics, or the repo.</p>
-                    <button class="start-chat-btn" id="startChatBtn" style="display:none;">🚀 Start Chatting (~300MB)</button>
+                    <button class="start-chat-btn" id="startChatBtn" style="display:none;">🚀 Start Chatting (~0.9GB)</button>
                     <div class="clear-models-link" id="clearModelsLink" style="display:none; font-size: 0.85rem; margin-top: 6px; text-align: center;">
                         <span>🗑 Clear models: DevTools → Application → Storage → Clear site data</span>
                     </div>
@@ -315,10 +315,8 @@
         }
 
         function updateStats(episodes) {
-            document.getElementById('episodeCount').textContent = episodes.length;
-            const topics = new Set(episodes.flatMap(ep => ep.tags || []));
-            document.getElementById('topicCount').textContent = topics.size;
-            document.getElementById('totalDuration').textContent = episodes.length > 0 ? `${episodes.length}` : '—';
+            const countEl = document.getElementById('episodeCountInline');
+            if (countEl) countEl.textContent = episodes.length === 1 ? '1 episode' : `${episodes.length} episodes`;
         }
 
         function updateFilterTabs(episodes) {
@@ -357,7 +355,7 @@
                 );
             }
             
-            const sorted = [...filtered].sort((a, b) => new Date(b.published_at) - Date(a.published_at));
+            const sorted = [...filtered].sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
             updateStats(sorted);
             updateFilterTabs(sorted);
             renderEpisodes(sorted);
@@ -480,7 +478,7 @@
     const webllm = await import("https://esm.run/@mlc-ai/web-llm");
     (async function() {
         let SYSTEM_PROMPT = 'You are a helpful AI assistant.'; // Default fallback
-        let currentModel = 'SmolLM2-135M-Instruct-q0f16-MLC';
+        let currentModel = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
         
         // Load system instructions from .md file
         try {
@@ -490,8 +488,8 @@
             console.warn('Could not load system-instructions.md, using default prompt');
         }
         
-        // Append minimal episode summary (populated by loadEpisodes in parallel)
-        if (window.__episodeSummary) SYSTEM_PROMPT += '\nEPISODES: ' + window.__episodeSummary;
+        // Episode context is injected fresh on each turn in generateResponse()
+        // (loadEpisodes runs in parallel, so we read window.__episodeSummary lazily).
         
         let messages = [];
         let engine = null;
@@ -587,9 +585,9 @@
             
             startBtn.disabled = true;
             startBtn.textContent = '⏳ Downloading model...';
-            updateHeroStatus('loading', 'Downloading model (~300MB)...');
+            updateHeroStatus('loading', 'Downloading model (~0.9GB)...');
             
-            const MODEL_ID = 'SmolLM2-135M-Instruct-q0f16-MLC';
+            const MODEL_ID = currentModel;
             if (modelBadge) modelBadge.textContent = MODEL_ID;
             if (webGPUBadge) { webGPUBadge.textContent = 'WebGPU: ✓'; webGPUBadge.style.color = 'var(--success)'; }
             
@@ -630,11 +628,19 @@
                 // Welcome message
                 addChatMessage('assistant', '⚡ Model loaded! Ask me about our AI/tech episodes, trending topics, or the repo. Keep it short and snappy!');
                 
+                // Send any message queued while the model was downloading
+                if (queuedMessage) {
+                    const pending = queuedMessage;
+                    queuedMessage = null;
+                    clearQueuedChip();
+                    sendAgentMessage(pending);
+                }
+                
             } catch (e) {
                 updateHeroStatus('error', e.message);
                 if (startBtn) {
                     startBtn.disabled = false;
-                    startBtn.textContent = '🚀 Retry Chat (~300MB)';
+                    startBtn.textContent = '🚀 Retry Chat (~0.9GB)';
                 }
             }
         }
@@ -737,15 +743,23 @@
                 // Build base system message
                 let sysMsg = { role: 'system', content: SYSTEM_PROMPT };
                 
+                // Always ground the model in the available episodes (read lazily —
+                // loadEpisodes populates these in parallel with model download).
+                if (window.__episodeSummary) {
+                    sysMsg.content += '\n\nEPISODES (the only episodes that exist):\n' + window.__episodeSummary;
+                } else {
+                    sysMsg.content += '\n\nEPISODES: none are published yet.';
+                }
+                
                 // Dynamic full episode context on explicit queries
                 const query = userText.toLowerCase();
                 if (/episode|topics|list|show.*ep|what do i have|what do you have/i.test(query) && window.__episodeFull) {
-                    sysMsg.content += '\nEPISODES DETAIL:\n' + window.__episodeFull;
+                    sysMsg.content += '\n\nEPISODES DETAIL:\n' + window.__episodeFull;
                 }
                 
                 const completion = await engine.chat.completions.create({
                     messages: [sysMsg, ...messages],
-                    temperature: 0.7, max_tokens: 200, stream: true
+                    temperature: 0.3, max_tokens: 200, stream: true
                 });
                 
                 hideElement(typing);
