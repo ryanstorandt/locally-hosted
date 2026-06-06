@@ -390,7 +390,9 @@
         // Table rendering helpers
         function ytThumb(youtubeUrl) {
             if (!youtubeUrl) return '';
-            const id = youtubeUrl.split('v=')[1]?.split(/[&?]/)[0];
+            const id = youtubeUrl.includes('/shorts/')
+                ? youtubeUrl.split('/shorts/')[1]?.split(/[/?&]/)[0]
+                : youtubeUrl.split('v=')[1]?.split(/[&?]/)[0];
             return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : '';
         }
 
