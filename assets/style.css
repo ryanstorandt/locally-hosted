@@ -613,6 +613,8 @@ a:hover {
     display: flex;
     gap: 8px;
     justify-content: center;
+    flex-wrap: wrap;
+    max-width: 100%;
 }
 
 .model-badge {
