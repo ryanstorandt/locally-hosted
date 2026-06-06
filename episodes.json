@@ -1,5 +1,22 @@
 [
   {
+    "id": "ep060",
+    "title": "Miasma Malware Reaches Azure: 73 Microsoft Repos Gone in Seconds",
+    "description": "Microsoft just got hit by a digital blight! In today's episode, Alex and Sam break down how the Miasma campaign rapidly disabled 73 Microsoft repositories in under two minutes, and what it means for Azure and open source security.",
+    "source_url": "https://opensourcemalware.com/blog/miasma-reaches-azure",
+    "youtube_short_url": "https://youtube.com/shorts/mi9IBVQUN7Q?feature=share",
+    "youtube_url": "https://www.youtube.com/watch?v=Ne1_f9iZmeU",
+    "spotify_url": "",
+    "tags": [
+      "Miasma Malware",
+      "Microsoft Azure Breach",
+      "OpenSourceMalware",
+      "73 Repos Disabled",
+      "Miasma Reaches Azure"
+    ],
+    "published_at": "2026-06-06T21:13:20.000Z"
+  },
+  {
     "id": "ep059",
     "title": "AI Writes jQuery & Bloated Code | Modern Web Repo Review",
     "description": "Is your AI coding agent about to write jQuery for a simple modal? Alex and Sam unpack Google's Modern Web Guidance source repo, exposing why models generate bloated code and how we can fix it.",
