@@ -42,6 +42,31 @@ Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports 
 - **LLM**: [Ollama](https://github.com/ollama/ollama) / [Qwen3](https://github.com/QwenLM/Qwen) — local prompt generation for scene descriptions and scripts
 - **Episode List**: [episodes.json](episodes.json)
 
+## Adding episodes
+
+Episode metadata lives in [episodes.json](episodes.json). You don't write it by
+hand — generate a record straight from the YouTube link with the included script
+(no API key, no dependencies; it scrapes the public watch page for title,
+description, tags, and publish date, then cleans them the same way the catalog
+was built):
+
+```bash
+# Append a new episode (prepended newest-first, id auto-incremented)
+node scripts/add-episode.mjs "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --short "https://www.youtube.com/shorts/SHORT_ID"   # optional Shorts link
+
+# Preview the record without writing the file
+node scripts/add-episode.mjs "https://youtu.be/VIDEO_ID" --dry
+```
+
+Options: `--short <url>`, `--spotify <url>`, `--source <url>` (override the
+auto-detected source link), `--dry` (print only), `--json <path>`.
+
+**Or fully hands-off:** run the **Add episode** GitHub Action
+(Actions tab → *Add episode* → *Run workflow*), paste the YouTube URL, and it
+appends to `episodes.json` and commits for you — GitHub Pages redeploys with the
+new episode. See [.github/workflows/add-episode.yml](.github/workflows/add-episode.yml).
+
 ## Browser Models
 
 Models are stored **in your browser**, not on this machine:
@@ -61,5 +86,5 @@ To free disk space, use the model picker in the hero to download smaller models 
 
 ## Contributing
 
-- **Add an episode**: Edit [episodes.json](episodes.json) → submit a pull request
+- **Add an episode**: Run `node scripts/add-episode.mjs <youtube_url>` (see [Adding episodes](#adding-episodes)) → submit a pull request
 - **Suggest a topic**: Open a [GitHub Discussion](https://github.com/ryanstorandt/locally-hosted/discussions)
