@@ -34,6 +34,7 @@
                         <span class="model-badge" id="webGPUBadge"></span>
                         <select id="modelPicker" class="model-picker" title="Choose a model">
                             <option value="SmolLM2-360M-Instruct-q4f32_1-MLC">SmolLM2 360M · mobile-safe (0.6GB)</option>
+                            <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M · f16, faster (0.4GB)</option>
                             <option value="SmolLM2-135M-Instruct-q0f16-MLC">SmolLM2 135M · fastest, needs f16 (0.3GB)</option>
                             <option value="gemma3-1b-it-q4f16_1-MLC">Gemma3 1B (0.7GB)</option>
                             <option value="Qwen2.5-0.5B-Instruct-q4f32_1-MLC">Qwen2.5 0.5B (1.1GB)</option>
@@ -491,6 +492,7 @@
         // Download size per model (for UI labels)
         const MODEL_SIZES = {
             'SmolLM2-360M-Instruct-q4f32_1-MLC': '0.6GB',
+            'SmolLM2-360M-Instruct-q4f16_1-MLC': '0.4GB',
             'SmolLM2-135M-Instruct-q0f16-MLC': '0.3GB',
             'gemma3-1b-it-q4f16_1-MLC': '0.7GB',
             'Qwen2.5-0.5B-Instruct-q4f32_1-MLC': '1.1GB',
@@ -513,18 +515,17 @@
             ? 'SmolLM2-360M-Instruct-q4f32_1-MLC'
             : 'SmolLM2-135M-Instruct-q0f16-MLC';
 
-        // Cap the KV-cache context window. SmolLM2's default is 8192 tokens, which
-        // allocates a large KV-cache GPU buffer that can exhaust a phone's GPU memory
-        // at load time — surfacing as "Failed to execute 'mapAsync' on 'GPUBuffer':
-        // Buffer was unmapped before mapping was resolved" (an OOM/device-loss symptom).
-        // Phones get a tighter window (1024) to keep the pre-allocated KV cache small
-        // while still fitting our grounded prompt: the system instructions (~215
-        // tokens) plus 3 retrieved episodes routinely reach ~600 tokens, so 512 was
-        // too small (ContextWindowSizeExceededError) once generation tokens are added.
-        // 1024 leaves headroom (prompt + GEN_MAX_TOKENS) and the q4f32_1 model's KV
-        // cache at 1024 (~80MB) stays under the Adreno 128MB binding limit observed in
-        // the diagnostic. Passed as the 3rd arg (chatOpts).
-        const chatOpts = { context_window_size: isMobile ? 1024 : 2048 };
+        // Mobile context window. The real mobile failure isn't the binding limit
+        // (the KV cache is the biggest buffer at ~60MB here, well under the 128MB
+        // limit seen in the diagnostic) — it's an Android GPU watchdog timeout: the
+        // fp32 prefill of a long prompt through all 32 layers takes too long in one
+        // GPU submission and the driver drops the device ("GPU dropped the model").
+        // Compute scales with the actual prompt length (dynamic shapes), so we attack
+        // it by trimming the mobile prompt hard (compact system prompt + few episodes,
+        // see below) to stay under the watchdog. context_window_size just sizes the KV
+        // cache; 768 fits the trimmed prompt + generation and keeps KV ~60MB. (Note:
+        // prefill_chunk_size is baked into the model wasm and can't be set here.)
+        const chatOpts = { context_window_size: isMobile ? 768 : 2048 };
         const GEN_MAX_TOKENS = isMobile ? 128 : 200;
         const GEN_HISTORY = isMobile ? 2 : 6;
         let isLoading = false;
@@ -536,6 +537,12 @@
         } catch (e) {
             console.warn('Could not load system-instructions.md, using default prompt');
         }
+
+        // Phones use a compact system prompt instead of the full ~215-token
+        // system-instructions.md. The Android GPU watchdog drops the device when the
+        // fp32 prefill runs too long, and prefill cost scales with prompt length — so
+        // every token we cut from the prompt directly lowers the crash risk.
+        const MOBILE_SYSTEM_PROMPT = 'You are the witty AI assistant for the "Locally Hosted" podcast about AI and web development. Answer in 1–2 short sentences, using only the episodes provided below. Never invent episodes, numbers, or dates.';
         
         // Episode context is injected fresh on each turn in generateResponse()
         // (loadEpisodes runs in parallel, so we read window.__episodeSummary lazily).
@@ -1235,7 +1242,7 @@
             
             try {
                 // Build base system message
-                let sysMsg = { role: 'system', content: SYSTEM_PROMPT };
+                let sysMsg = { role: 'system', content: isMobile ? MOBILE_SYSTEM_PROMPT : SYSTEM_PROMPT };
                 
                 // Ground the model in the episodes using lightweight retrieval: inject only
                 // a few relevant episodes so the prompt stays within the small context window.
@@ -1293,15 +1300,24 @@
                         picked = scored.slice(0, 5).map(x => x.ep);
                         if (!picked.length) picked = eps.slice(0, 3); // fallback: a few newest
                     }
-                    // On phones, keep the prompt small to limit prefill GPU memory.
-                    if (isMobile) { picked = picked.slice(0, 3); maxDesc = Math.min(maxDesc, 200); }
+                    // On phones, keep the prompt tiny to stay under the Android GPU
+                    // prefill watchdog: 2 episodes with short summaries (not 3 × 200).
+                    if (isMobile) { picked = picked.slice(0, 2); maxDesc = Math.min(maxDesc, 100); }
                     const lines = picked.map(ep => {
                         const num = parseInt(ep.id.replace(/\D/g, ''), 10);
-                        const topics = ep.tags.split(',').filter(Boolean).slice(0, 4).join(', ');
                         const d = ep.desc.length > maxDesc ? ep.desc.slice(0, maxDesc).replace(/\s+\S*$/, '') + '…' : ep.desc;
+                        // Drop the topics/tags line on mobile to shave prompt tokens.
+                        if (isMobile) {
+                            return `- Episode ${num} (${ep.date}): "${ep.title}". ${d}`;
+                        }
+                        const topics = ep.tags.split(',').filter(Boolean).slice(0, 4).join(', ');
                         return `- Episode ${num} (published ${ep.date}): "${ep.title}". Topics: ${topics}. Summary: ${d}`;
                     }).join('\n');
-                    sysMsg.content += `\n\nThere are ${eps.length} episodes, numbered 1 (oldest) to ${newestNum} (newest). Only these episodes exist; do not invent others or make up episode numbers. Use the exact "published" date shown; never guess dates. Answer in a natural sentence or two using the episode number, title, date, and a bit of the summary — never paste raw data lines, tags, or URLs.\n\nRelevant episodes:\n${lines}`;
+                    if (isMobile) {
+                        sysMsg.content += `\n\n${eps.length} episodes exist (1=oldest…${newestNum}=newest). Use only these; never invent episodes or dates.\n\nEpisodes:\n${lines}`;
+                    } else {
+                        sysMsg.content += `\n\nThere are ${eps.length} episodes, numbered 1 (oldest) to ${newestNum} (newest). Only these episodes exist; do not invent others or make up episode numbers. Use the exact "published" date shown; never guess dates. Answer in a natural sentence or two using the episode number, title, date, and a bit of the summary — never paste raw data lines, tags, or URLs.\n\nRelevant episodes:\n${lines}`;
+                    }
                     console.log('[agent] query:', JSON.stringify(userText),
                         '\n[agent] retrieval path:', numMatches.length ? 'episode-number' : (wantsLatest ? 'latest' : 'keyword'),
                         '\n[agent] grounded episodes:', picked.map(ep => 'Episode ' + parseInt(ep.id.replace(/\D/g, ''), 10)).join(', ') || '(none)',
@@ -1357,7 +1373,7 @@
                     worker = null;
                     engine = null;
                     modelLoaded = false;
-                    addReloadButton('📱 The GPU dropped the model — likely low memory or an Android f16 driver bug. Tap below to reload, or switch to the mobile-safe model (SmolLM2 360M · q4f32_1) from the dropdown. Run the WebGPU diagnostic to see your device limits.');
+                    addReloadButton('📱 Your phone\'s GPU timed out processing that request (a known Android limit on long prompts), so it dropped the model. Tap below to reload, then try a shorter, more specific question. For more speed, switch to "SmolLM2 360M · f16, faster" in the dropdown.');
                     updateHeroStatus('error', 'GPU lost the model — reload to continue.');
                 } else if (contextExceeded) {
                     // Recoverable: the engine is still alive, the prompt just pulled in
