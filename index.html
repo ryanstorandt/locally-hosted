@@ -378,25 +378,25 @@
                 
                 refreshEpisodes();
                 
-                // Inject minimal episode summary into agent greeting
+                // Expose episodes for the agent: a compact, newest-first list used for
+                // lightweight retrieval in generateResponse() (only a few are injected
+                // per turn so we never exceed the model's small context window).
                 const count = allEpisodes.length;
-                const summary = allEpisodes.map(ep => {
-                    const shortId = ep.id.replace(/\D/g, '').substring(0, 3);
-                    return `#${shortId}|${ep.title}|${(ep.tags||[]).join(',')}`;
-                }).join(' | ');
+                const byNewest = [...allEpisodes].sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+                window.__episodes = byNewest.map(ep => ({
+                    id: ep.id,
+                    title: ep.title,
+                    tags: (ep.tags || []).join(','),
+                    desc: (ep.description || '').slice(0, 80),
+                    date: (ep.published_at || '').slice(0, 10),
+                    url: `https://ryanstorandt.github.io/locally-hosted/episodes/index.html?id=${ep.id}`
+                }));
+                window.__episodeCount = count;
                 
                 const greetingText = document.getElementById('agentGreetingText');
                 if (greetingText) {
                     greetingText.textContent = count === 1 ? '1 episode loaded — ask me anything!' : `${count} episodes loaded — ask me anything!`;
                 }
-                if (window.__episodeSummary) window.__episodeSummary += ' | ' + summary;
-                else window.__episodeSummary = summary;
-                
-                // Full detail for explicit episode queries
-                window.__episodeFull = allEpisodes.map(ep => {
-                    const url = `https://ryanstorandt.github.io/locally-hosted/episodes/index.html?id=${ep.id}`;
-                    return `#${ep.id} | ${ep.title} | ${ep.description?.substring(0, 60) || ''} | ${ep.tags?.join(',') || 'n/a'} | ${url}`;
-                }).join('\n');
                 
             } catch (e) {
                 document.getElementById('episodesGrid').innerHTML = 
@@ -428,6 +428,9 @@
         let messages = [];
         let engine = null;
         let modelLoaded = false;
+        
+        // Common words ignored when matching a query against episodes.
+        const STOP_WORDS = new Set(['the','and','for','are','what','which','who','how','about','your','you','our','this','that','with','have','has','can','tell','show','give','any','all','was','were','from','into','more','most','latest','newest','recent','last','episode','episodes','video','videos','short','shorts','please','there']);
         
         // Queue for chips clicked during model download
         let queuedMessage = null;
@@ -852,22 +855,34 @@
                 // Build base system message
                 let sysMsg = { role: 'system', content: SYSTEM_PROMPT };
                 
-                // Always ground the model in the available episodes (read lazily —
-                // loadEpisodes populates these in parallel with model download).
-                if (window.__episodeSummary) {
-                    sysMsg.content += '\n\nEPISODES (the only episodes that exist):\n' + window.__episodeSummary;
-                } else {
+                // Ground the model in the episodes using lightweight retrieval: inject only
+                // a few relevant episodes so the prompt stays within the small context window.
+                const eps = window.__episodes || [];
+                if (!eps.length) {
                     sysMsg.content += '\n\nEPISODES: none are published yet.';
-                }
-                
-                // Dynamic full episode context on explicit queries
-                const query = userText.toLowerCase();
-                if (/episode|topics|list|show.*ep|what do i have|what do you have/i.test(query) && window.__episodeFull) {
-                    sysMsg.content += '\n\nEPISODES DETAIL:\n' + window.__episodeFull;
+                } else {
+                    const q = userText.toLowerCase();
+                    const wantsLatest = /\b(latest|newest|recent|last|most recent)\b/.test(q);
+                    let picked;
+                    if (wantsLatest) {
+                        picked = eps.slice(0, 3); // eps is newest-first
+                    } else {
+                        const words = (q.match(/[a-z0-9]{3,}/g) || []).filter(w => !STOP_WORDS.has(w));
+                        const scored = eps.map(ep => {
+                            const hay = (ep.title + ' ' + ep.tags + ' ' + ep.desc).toLowerCase();
+                            let s = 0;
+                            for (const w of words) if (hay.includes(w)) s++;
+                            return { ep, s };
+                        }).filter(x => x.s > 0).sort((a, b) => b.s - a.s);
+                        picked = scored.slice(0, 5).map(x => x.ep);
+                        if (!picked.length) picked = eps.slice(0, 3); // fallback: a few newest
+                    }
+                    const lines = picked.map(ep => `#${ep.id} | ${ep.title} | ${ep.tags} | ${ep.url}`).join('\n');
+                    sysMsg.content += `\n\nThere are ${eps.length} episodes total (newest first above). Only these episodes exist; do not invent others. Relevant episodes:\n${lines}`;
                 }
                 
                 const completion = await engine.chat.completions.create({
-                    messages: [sysMsg, ...messages],
+                    messages: [sysMsg, ...messages.slice(-6)],
                     temperature: 0.3, max_tokens: 200, stream: true
                 });
                 
