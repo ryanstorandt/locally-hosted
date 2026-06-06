@@ -46,6 +46,10 @@
                 
                 
                 <div class="agent-chat-messages" id="agentChatMessages" style="display:none;">
+                    <div class="suggested-topics" id="suggestedTopics">
+                        <p class="suggested-topics-label">Explore by topic:</p>
+                        <div class="suggested-topics-row" id="suggestedTopicsRow"></div>
+                    </div>
                     <!-- Messages stream here -->
                 </div>
                 
@@ -56,6 +60,7 @@
                         AI-powered, runs in your browser — no API keys, no cloud
                     </div>
                     <p class="agent-greeting-text" id="agentGreetingText">Ask me about our AI/tech episodes, trending topics, or the repo.</p>
+                    <div class="hallucination-disclaimer">⚠️ SLM-powered: funny, fast, and occasionally wrong. It's free tokens after all!</div>
                     <button class="start-chat-btn" id="startChatBtn" style="display:none;">🚀 Start Chatting (~0.3GB)</button>
                     <div class="clear-models-link" id="clearModelsLink" style="display:none; font-size: 0.85rem; margin-top: 6px; text-align: center;">
                         <span>🗑 Clear models: DevTools → Application → Storage → Clear site data</span>
@@ -808,7 +813,7 @@
                 setMicState(false);
                 if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
                     updateHeroStatus('error', 'Microphone blocked — allow mic access to dictate.');
-                    setTimeout(() => { if (modelLoaded) updateHeroStatus('ready', 'AI ready'); }, 3000);
+                    setTimeout(() => { if (modelLoaded) updateHeroStatus('ready', 'Podcast Agent Ready'); }, 3000);
                 }
             });
             
@@ -902,10 +907,13 @@
                 // Update badge
                 const mb = document.getElementById('modelBadge');
                 if (mb) { mb.innerHTML = `✓ ${MODEL_ID} ready`; mb.style.color = 'var(--success)'; }
-                updateHeroStatus('ready', 'AI ready');
+                updateHeroStatus('ready', 'Podcast Agent Ready');
                 
                 // Welcome message
                 addChatMessage('assistant', '⚡ Model loaded! Ask me about our AI/tech episodes, trending topics, or the repo. Keep it short and snappy!');
+                
+                // Populate suggested topic chips from episodes
+                loadSuggestedTopics();
                 
                 // Send any message queued while the model was downloading
                 if (queuedMessage) {
@@ -983,7 +991,7 @@
                     
                     const mb = document.getElementById('modelBadge');
                     if (mb) { mb.innerHTML = `✓ ${newModel.split('-q4')[0]} ready`; mb.style.color = 'var(--success)'; }
-                    updateHeroStatus('ready', 'AI ready');
+                    updateHeroStatus('ready', 'Podcast Agent Ready');
                     
                     addChatMessage('assistant', `⚡ Model switched! Now using ${newModel.split('-q4')[0]}. Ready — ask me anything!`);
                     
@@ -996,6 +1004,27 @@
                     }
                     updateHeroStatus('error', m);
                 }
+            });
+        }
+        
+        // Load suggested topic chips from episode tags
+        async function loadSuggestedTopics() {
+            const container = document.getElementById('suggestedTopicsRow');
+            const label = document.getElementById('suggestedTopicsLabel');
+            if (!container) return;
+            
+            // Top 12 most frequent tags from episodes
+            const popularTags = ['ai agents', 'microsoft ai', 'local ai', 'agentic ai', 'open source ai', 'build 2026', 'anthropic', 'dgx spark', 'developer tools', 'mcp server', 'ai coding agents', 'ollama'];
+            
+            container.innerHTML = popularTags.map(tag =>
+                `<button class="topic-chip" data-query="What is ${tag}?">${tag.charAt(0).toUpperCase() + tag.slice(1)}</button>`
+            ).join('');
+            
+            // Add click handlers
+            container.querySelectorAll('.topic-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    sendAgentMessage(chip.dataset.query);
+                });
             });
         }
         
@@ -1151,7 +1180,7 @@
                 console.log('[agent] reply:', JSON.stringify(reply));
                 addReplayButton(bubble, () => reply);
                 if (autoSpeak) speak(reply);
-                updateHeroStatus('ready', 'AI ready');
+                updateHeroStatus('ready', 'Podcast Agent Ready');
             } catch (e) {
                 hideElement(typing);
                 const msg = (e && e.message) || String(e);
