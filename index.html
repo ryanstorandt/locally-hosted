@@ -450,7 +450,7 @@
                     id: ep.id,
                     title: ep.title,
                     tags: (ep.tags || []).join(','),
-                    desc: (ep.description || '').slice(0, 180),
+                    desc: (ep.description || '').slice(0, 360),
                     date: (ep.published_at || '').slice(0, 10),
                     url: getYoutubeId(ep) ? `https://www.youtube.com/watch?v=${getYoutubeId(ep)}` : ''
                 }));
@@ -925,9 +925,24 @@
                     sysMsg.content += '\n\nEPISODES: none are published yet.';
                 } else {
                     const q = userText.toLowerCase();
+                    const byId = new Map(eps.map(ep => [ep.id, ep]));
+                    const newestNum = parseInt((eps[0].id || '').replace(/\D/g, ''), 10) || eps.length;
+
+                    // Direct episode-number lookups: "episode 3", "ep 3", "ep3", "#1", "episode #007".
+                    const numMatches = [];
+                    const numRe = /(?:\b(?:episode|ep)\.?\s*#?\s*|#)0*(\d{1,3})\b/g;
+                    let nm;
+                    while ((nm = numRe.exec(q)) !== null) {
+                        const ep = byId.get('ep' + nm[1].padStart(3, '0'));
+                        if (ep && !numMatches.includes(ep)) numMatches.push(ep);
+                    }
+
                     const wantsLatest = /\b(latest|newest|recent|last|most recent)\b/.test(q);
-                    let picked;
-                    if (wantsLatest) {
+                    let picked, maxDesc = 180;
+                    if (numMatches.length) {
+                        picked = numMatches.slice(0, 5);
+                        maxDesc = 360; // fuller detail when asked about a specific episode
+                    } else if (wantsLatest) {
                         picked = eps.slice(0, 3); // eps is newest-first
                     } else {
                         const words = (q.match(/[a-z0-9]{3,}/g) || []).filter(w => !STOP_WORDS.has(w));
@@ -941,10 +956,12 @@
                         if (!picked.length) picked = eps.slice(0, 3); // fallback: a few newest
                     }
                     const lines = picked.map(ep => {
+                        const num = parseInt(ep.id.replace(/\D/g, ''), 10);
                         const topics = ep.tags.split(',').filter(Boolean).slice(0, 4).join(', ');
-                        return `- ${ep.id} (published ${ep.date}): "${ep.title}". Topics: ${topics}. Summary: ${ep.desc}`;
+                        const d = ep.desc.length > maxDesc ? ep.desc.slice(0, maxDesc).replace(/\s+\S*$/, '') + '…' : ep.desc;
+                        return `- Episode ${num} (published ${ep.date}): "${ep.title}". Topics: ${topics}. Summary: ${d}`;
                     }).join('\n');
-                    sysMsg.content += `\n\nThere are ${eps.length} episodes total. Only these episodes exist; do not invent others. Use the exact "published" date shown; never guess dates. When you tell the user about an episode, reply in a natural sentence or two using the title, date, and a bit of the summary — never paste raw data lines, tags, episode IDs, or URLs.\n\nRelevant episodes:\n${lines}`;
+                    sysMsg.content += `\n\nThere are ${eps.length} episodes, numbered 1 (oldest) to ${newestNum} (newest). Only these episodes exist; do not invent others or make up episode numbers. Use the exact "published" date shown; never guess dates. Answer in a natural sentence or two using the episode number, title, date, and a bit of the summary — never paste raw data lines, tags, or URLs.\n\nRelevant episodes:\n${lines}`;
                 }
                 
                 const completion = await engine.chat.completions.create({
