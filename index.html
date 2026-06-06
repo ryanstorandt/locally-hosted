@@ -32,12 +32,12 @@
                     <div class="agent-chat-badges" id="modelBadges" style="display:none;">
                         <span class="model-badge" id="modelBadge"></span>
                         <span class="model-badge" id="webGPUBadge"></span>
-                        <select id="modelPicker" class="model-picker" title="Choose a model (under 1GB)">
-                            <option value="SmolLM2-135M-Instruct-q0f16-MLC" selected>SmolLM2 135M (0.3GB)</option>
-                            <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M (0.4GB)</option>
-                            <option value="TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama 1.1B (0.7GB)</option>
+                        <select id="modelPicker" class="model-picker" title="Choose a model">
+                            <option value="SmolLM2-360M-Instruct-q4f32_1-MLC">SmolLM2 360M · mobile-safe (0.6GB)</option>
+                            <option value="SmolLM2-135M-Instruct-q0f16-MLC">SmolLM2 135M · fastest, needs f16 (0.3GB)</option>
                             <option value="gemma3-1b-it-q4f16_1-MLC">Gemma3 1B (0.7GB)</option>
-                            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B (0.9GB)</option>
+                            <option value="Qwen2.5-0.5B-Instruct-q4f32_1-MLC">Qwen2.5 0.5B (1.1GB)</option>
+                            <option value="Llama-3.2-1B-Instruct-q4f32_1-MLC">Llama 3.2 1B (1.1GB)</option>
                         </select>
                         <button id="speakToggle" class="model-badge speak-toggle" type="button" aria-pressed="false" title="Read replies aloud">🔇 Speak: Off</button>
                         <select id="voiceSelect" class="model-badge voice-select" title="Choose the voice used for spoken replies" aria-label="Voice" style="display:none;"></select>
@@ -75,7 +75,8 @@
                         <button class="suggestion-chip" data-query="What is build 2026?">🏗️ Build 2026</button>
                         <button class="suggestion-chip" data-query="Show me something cool about AI">✨ Surprise me</button>
                     </div>
-                    <button class="start-chat-btn" id="startChatBtn" style="display:none;">🚀 Start Chatting (~0.3GB)</button>
+                    <button class="start-chat-btn" id="startChatBtn" style="display:none;">🚀 Start Chatting</button>
+                    <button class="webgpu-diag-btn" id="webgpuDiagBtn" type="button" title="Check your device's WebGPU capabilities">🔧 WebGPU diagnostic</button>
                 </div>
                 
                 <div class="agent-chat-input-row" id="agentChatInputRow" style="display:none;">
@@ -489,32 +490,40 @@
 
         // Download size per model (for UI labels)
         const MODEL_SIZES = {
+            'SmolLM2-360M-Instruct-q4f32_1-MLC': '0.6GB',
             'SmolLM2-135M-Instruct-q0f16-MLC': '0.3GB',
-            'SmolLM2-360M-Instruct-q4f16_1-MLC': '0.4GB',
-            'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC': '0.7GB',
             'gemma3-1b-it-q4f16_1-MLC': '0.7GB',
-            'Llama-3.2-1B-Instruct-q4f16_1-MLC': '0.9GB',
+            'Qwen2.5-0.5B-Instruct-q4f32_1-MLC': '1.1GB',
+            'Llama-3.2-1B-Instruct-q4f32_1-MLC': '1.1GB',
         };
         const sizeOf = (m) => MODEL_SIZES[m] || '~1GB';
 
-        // Default to the smallest model everywhere: it loads fast and runs
-        // reliably even on phones (bigger models can exhaust mobile GPU memory).
-        // Users can pick a larger model anytime from the dropdown.
+        // Default model is mobile-aware. On phones we lead with a q4f32_1 build:
+        // 4-bit weights with fp32 math, so it does NOT require the WebGPU
+        // `shader-f16` feature. The 135M default (q0f16) is tiny to download but
+        // mandates shader-f16 and runs every op in f16 — which trips Android
+        // Chrome's Vulkan f16 pipeline/OOM bugs and drops the GPU device on phones
+        // like the Galaxy S23. SmolLM2 360M q4f32_1 (~0.6GB) is actually *less* GPU
+        // memory than the only f16-free 135M build (q0f32, ~0.7GB), so it's the
+        // smallest safe mobile choice. Desktop keeps the fast 135M f16 build.
         const isMobile = (navigator.userAgentData && navigator.userAgentData.mobile) ||
             /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
             (navigator.maxTouchPoints > 1 && window.matchMedia('(max-width: 820px)').matches);
-        let currentModel = 'SmolLM2-135M-Instruct-q0f16-MLC';
+        let currentModel = isMobile
+            ? 'SmolLM2-360M-Instruct-q4f32_1-MLC'
+            : 'SmolLM2-135M-Instruct-q0f16-MLC';
 
         // Cap the KV-cache context window. SmolLM2's default is 8192 tokens, which
         // allocates a large KV-cache GPU buffer that can exhaust a phone's GPU memory
         // at load time — surfacing as "Failed to execute 'mapAsync' on 'GPUBuffer':
         // Buffer was unmapped before mapping was resolved" (an OOM/device-loss symptom).
-        // Phones get an even tighter window (1024) so the pre-allocated KV cache leaves
-        // headroom for the transient compute buffers used during generation; our trimmed
-        // mobile prompt stays well under it. Passed as the 3rd arg (chatOpts).
-        const chatOpts = { context_window_size: isMobile ? 1024 : 2048 };
+        // Phones get an even tighter window (512) so the pre-allocated KV cache
+        // leaves headroom for the transient compute buffers used during
+        // generation; our trimmed mobile prompt stays well under it. This is the
+        // single biggest mobile memory cut. Passed as the 3rd arg (chatOpts).
+        const chatOpts = { context_window_size: isMobile ? 512 : 2048 };
         const GEN_MAX_TOKENS = isMobile ? 128 : 200;
-        const GEN_HISTORY = isMobile ? 4 : 6;
+        const GEN_HISTORY = isMobile ? 2 : 6;
         let isLoading = false;
         
         // Load system instructions from .md file
@@ -790,10 +799,86 @@
             btn.textContent = `🚀 Reload model (~${sizeOf(currentModel)})`;
             btn.addEventListener('click', () => { btn.disabled = true; loadModel(); });
             bubble.appendChild(btn);
+            addDiagnosticButton(bubble);
             msgDiv.appendChild(avatar);
             msgDiv.appendChild(bubble);
             agentChatMessages.appendChild(msgDiv);
             agentChatMessages.scrollTop = agentChatMessages.scrollHeight;
+        }
+
+        // One-tap WebGPU diagnostic. Runs entirely on the main thread and reports
+        // the device's adapter info, key limits, feature flags (notably shader-f16)
+        // and a moderate test allocation — so a phone user can see *why* a model
+        // failed to load without a desktop devtools console.
+        async function runWebGPUDiagnostic() {
+            const out = [];
+            const mb = (n) => (typeof n === 'number' ? (n / 1048576).toFixed(0) + ' MB' : '?');
+            out.push('UA: ' + (navigator.userAgent || '?'));
+            out.push('navigator.gpu: ' + (!!navigator.gpu));
+            if (!navigator.gpu) { out.push('=> WebGPU is not available in this browser.'); return out.join('\n'); }
+            let adapter;
+            try { adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }); }
+            catch (e) { out.push('requestAdapter error: ' + (e.message || e)); return out.join('\n'); }
+            if (!adapter) { out.push('requestAdapter(): null — no WebGPU adapter.'); return out.join('\n'); }
+            let info = {};
+            try { info = adapter.info || (adapter.requestAdapterInfo ? await adapter.requestAdapterInfo() : {}); } catch (_) {}
+            out.push('vendor: ' + (info.vendor || '?') + '  arch: ' + (info.architecture || '?'));
+            const f = adapter.features;
+            out.push('shader-f16: ' + f.has('shader-f16'));
+            out.push('subgroups: ' + (f.has('subgroups') || f.has('subgroups-f16')));
+            const L = adapter.limits;
+            out.push('maxBufferSize: ' + mb(L.maxBufferSize));
+            out.push('maxStorageBufferBindingSize: ' + mb(L.maxStorageBufferBindingSize));
+            out.push('maxComputeWorkgroupStorageSize: ' + (L.maxComputeWorkgroupStorageSize / 1024).toFixed(0) + ' KB');
+            // A live model session already holds a device; a big probe alloc could
+            // worsen OOM or trip device loss. Only probe when idle, and keep it small.
+            if (modelLoaded || isLoading) {
+                out.push('test alloc: skipped (model session active)');
+            } else {
+                try {
+                    const dev = await adapter.requestDevice();
+                    const tryBytes = Math.min(64 * 1048576, L.maxBufferSize);
+                    dev.pushErrorScope('out-of-memory');
+                    const buf = dev.createBuffer({ size: tryBytes, usage: GPUBufferUsage.STORAGE });
+                    const err = await dev.popErrorScope();
+                    out.push('test alloc ' + mb(tryBytes) + ' (coarse probe): ' + (err ? 'FAILED (' + err.message + ')' : 'ok'));
+                    try { buf.destroy(); } catch (_) {}
+                    try { dev.destroy(); } catch (_) {}
+                } catch (e) {
+                    out.push('requestDevice/alloc error: ' + (e.message || e));
+                }
+            }
+            out.push('');
+            if (f.has('shader-f16')) {
+                out.push('Note: shader-f16 is exposed, so f16 models (135M q0f16) will try to use it — on Android this can still drop the GPU. The mobile-safe model (SmolLM2 360M q4f32_1) avoids f16 entirely.');
+            } else {
+                out.push('Note: shader-f16 is NOT exposed — stick to a q4f32_1 / fp32 model (the mobile-safe default).');
+            }
+            return out.join('\n');
+        }
+
+        // Reveal the chat area (if hidden) and render the diagnostic as a code block.
+        function showDiagnostic(text) {
+            if (agentChatMessages) agentChatMessages.style.display = 'flex';
+            console.log('[webgpu-diagnostic]\n' + text);
+            addChatMessage('assistant', '🔧 **WebGPU diagnostic**\n```\n' + text + '\n```');
+        }
+
+        // Append a diagnostic button to a chat bubble (used in error/reload bubbles).
+        function addDiagnosticButton(bubble) {
+            const b = document.createElement('button');
+            b.className = 'webgpu-diag-btn';
+            b.type = 'button';
+            b.style.marginTop = '8px';
+            b.style.marginLeft = '8px';
+            b.textContent = '🔧 WebGPU diagnostic';
+            b.addEventListener('click', async () => {
+                b.disabled = true; const old = b.textContent; b.textContent = '🔧 Running…';
+                try { showDiagnostic(await runWebGPUDiagnostic()); }
+                catch (e) { showDiagnostic('diagnostic error: ' + (e.message || e)); }
+                b.disabled = false; b.textContent = old;
+            });
+            bubble.appendChild(b);
         }
         
         // Dictation via the Web Speech API (webkitSpeechRecognition)
@@ -865,6 +950,15 @@
                     updateHeroStatus('error', 'WebGPU adapter not available. Your GPU may not be supported.');
                 } else {
                     webgpuSupported = true;
+                    // If this GPU lacks shader-f16, an f16 model (135M q0f16) will
+                    // drop the device on load. Proactively fall back to the
+                    // mobile-safe q4f32_1 build (covers desktops without f16 too).
+                    try {
+                        if (!adapter.features.has('shader-f16') &&
+                            currentModel === 'SmolLM2-135M-Instruct-q0f16-MLC') {
+                            currentModel = 'SmolLM2-360M-Instruct-q4f32_1-MLC';
+                        }
+                    } catch (_) {}
                 }
             } catch (e) {
                 updateHeroStatus('error', 'WebGPU error: ' + e.message);
@@ -873,9 +967,13 @@
         
         // Show start button if WebGPU supported
         const startBtn = document.getElementById('startChatBtn');
+        let startVerb = 'Start Chatting';
+        function setStartLabel() {
+            if (startBtn) startBtn.textContent = `🚀 ${startVerb} (~${sizeOf(currentModel)})`;
+        }
         if (startBtn && webgpuSupported) {
             startBtn.style.display = 'inline-flex';
-            startBtn.textContent = `🚀 Start Chatting (~${sizeOf(currentModel)})`;
+            setStartLabel();
         }
         
         // Model loading function (user-triggered)
@@ -956,17 +1054,23 @@
                 
             } catch (e) {
                 const msg = (e && e.message) || String(e);
-                const isGpuMem = /mapAsync|GPUBuffer|unmapped|out of memory|device.*lost|allocat/i.test(msg);
-                const smallest = currentModel === 'SmolLM2-135M-Instruct-q0f16-MLC';
-                if (isGpuMem && !smallest) {
-                    updateHeroStatus('error', 'Not enough GPU memory for this model on your device. Pick a smaller model below and tap Retry.');
-                    addChatMessage('assistant', '📱 Looks like this device ran out of GPU memory for that model. Try a smaller one from the model dropdown (SmolLM2 135M/360M are the lightest), then tap Retry.');
+                const isGpuMem = /mapAsync|GPUBuffer|unmapped|out of memory|device.*lost|allocat|f16|shader/i.test(msg);
+                const onMobileSafe = currentModel === 'SmolLM2-360M-Instruct-q4f32_1-MLC';
+                if (isGpuMem) {
+                    updateHeroStatus('error', "Your device's GPU couldn't load this model.");
+                    const tip = onMobileSafe
+                        ? "📱 Your device's GPU couldn't fit this model. Tap Retry, or run the WebGPU diagnostic below to see your GPU's limits."
+                        : "📱 Your device ran out of GPU memory or hit an Android f16 driver bug. On phones, pick the mobile-safe model (SmolLM2 360M · q4f32_1 — no shader-f16) from the dropdown, then Retry. Run the diagnostic below to see why.";
+                    addReloadButton(tip);
                 } else {
                     updateHeroStatus('error', msg);
+                    addReloadButton('⚠️ Couldn’t load the model: ' + msg);
                 }
+                if (modelBadges) modelBadges.style.display = 'flex';
                 if (startBtn) {
                     startBtn.disabled = false;
-                    startBtn.textContent = `🚀 Retry Chat (~${sizeOf(currentModel)})`;
+                    startVerb = 'Retry Chat';
+                    setStartLabel();
                 }
             } finally {
                 isLoading = false;
@@ -977,6 +1081,20 @@
         if (startBtn && webgpuSupported) {
             startBtn.addEventListener('click', loadModel);
         }
+
+        // Wire the standalone diagnostic button shown next to "Start Chatting".
+        const webgpuDiagBtn = document.getElementById('webgpuDiagBtn');
+        if (webgpuDiagBtn) {
+            webgpuDiagBtn.addEventListener('click', async () => {
+                webgpuDiagBtn.disabled = true;
+                const old = webgpuDiagBtn.textContent;
+                webgpuDiagBtn.textContent = '🔧 Running…';
+                try { showDiagnostic(await runWebGPUDiagnostic()); }
+                catch (e) { showDiagnostic('diagnostic error: ' + (e.message || e)); }
+                webgpuDiagBtn.disabled = false;
+                webgpuDiagBtn.textContent = old;
+            });
+        }
         
         // Model picker — switch models (requires reload)
         const modelPicker = document.getElementById('modelPicker');
@@ -984,8 +1102,16 @@
             modelPicker.value = currentModel;
             modelPicker.addEventListener('change', async (e) => {
                 const newModel = e.target.value;
-                if (!newModel || !modelLoaded) return;
+                if (!newModel) return;
                 if (newModel === currentModel) return;
+                // Before a model is loaded (initial state, or after a failed
+                // load), just remember the choice and update the Start/Retry
+                // label. The actual load happens when the user taps the button.
+                if (!modelLoaded) {
+                    currentModel = newModel;
+                    setStartLabel();
+                    return;
+                }
                 
                 addChatMessage('assistant', `🔄 Switching from ${currentModel.split('-q4')[0]} to ${newModel.split('-q4')[0]}...`);
                 
@@ -1227,7 +1353,7 @@
                     worker = null;
                     engine = null;
                     modelLoaded = false;
-                    addReloadButton('📱 The GPU dropped the model — likely low memory. Tap below to reload (already using the lightest model and a compact context window).');
+                    addReloadButton('📱 The GPU dropped the model — likely low memory or an Android f16 driver bug. Tap below to reload, or switch to the mobile-safe model (SmolLM2 360M · q4f32_1) from the dropdown. Run the WebGPU diagnostic to see your device limits.');
                     updateHeroStatus('error', 'GPU lost the model — reload to continue.');
                 } else {
                     addChatMessage('assistant', `⚠️ Error: ${msg}`);

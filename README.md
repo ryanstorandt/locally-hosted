@@ -22,10 +22,10 @@ Submit a tech article (arXiv paper, GitHub repo, blog post, Hacker News) and the
 
 ## Features
 
-- **AI Agent** — In-browser AI assistant powered by WebLLM with model picker (SmolLM2, TinyLlama, Gemma3, Llama 3.2)
+- **AI Agent** — In-browser AI assistant powered by WebLLM with model picker (SmolLM2, Gemma3, Qwen2.5, Llama 3.2)
 - **Voice dictation** — Speak your question with the mic button (Web Speech API, fully in-browser)
 - **Spoken replies** — Optional text-to-speech read-aloud of agent answers (`speechSynthesis`), with a voice picker that prefers the most natural voice your browser offers (Edge neural / Google) and lets you switch; toggle on/off or replay any message
-- **Model Picker** — Defaults to the lightweight **SmolLM2 135M (0.3GB)** so it loads fast and runs reliably on phones; pick a larger model anytime (SmolLM2 360M, TinyLlama 1.1B, Gemma3 1B, Llama 3.2 1B)
+- **Model Picker** — Mobile-aware default: phones start on **SmolLM2 360M (q4f32_1, ~0.6GB)** — a 4-bit/fp32 build that avoids the WebGPU `shader-f16` feature, so it loads on Android Chrome (e.g. Galaxy S23) where the f16 build drops the GPU. Desktops default to the fast **SmolLM2 135M (0.3GB)**. Pick any model anytime (SmolLM2 135M/360M, Gemma3 1B, Qwen2.5 0.5B, Llama 3.2 1B). A one-tap **WebGPU diagnostic** reports your device's adapter limits and feature flags.
 - **WebGPU-accelerated** — Runs entirely in your browser, no API keys needed
 - **Works offline** after first model download
 - **Podcast Wiki** — Browse episodes with table/cards view, suggest topics via GitHub Discussions
@@ -35,7 +35,7 @@ Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports 
 ## Tech Stack
 
 - **Web App**: Static GitHub Pages (HTML/CSS/JS)
-- **In-browser AI**: [WebLLM](https://github.com/mlc-ai/web-llm) (runs in a Web Worker, off the main thread) + model picker (SmolLM2, TinyLlama, Gemma3, Llama 3.2)
+- **In-browser AI**: [WebLLM](https://github.com/mlc-ai/web-llm) (runs in a Web Worker, off the main thread) + model picker (SmolLM2, Gemma3, Qwen2.5, Llama 3.2)
 - **Video Pipeline**: [ai-video-pipeline](https://github.com/ryanstorandt/ai-video-pipeline) — NVIDIA DGX Spark
 - **AI Video Generation**: [CogVideoX](https://github.com/THUDM/CogVideo) (2B, 5B, or 1.5-5B) — local Docker container
 - **Voice Synthesis**: [Microsoft VibeVoice](https://github.com/microsoft/VibeVoice) (local neural TTS with voice cloning) + broadcast mastering (-16 LUFS)

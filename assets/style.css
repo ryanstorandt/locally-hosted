@@ -728,11 +728,18 @@ a:hover {
     border-radius: 8px;
     overflow-x: auto;
     margin: 8px 0;
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .chat-bubble pre code {
     background: none;
     padding: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .chat-bubble strong {
@@ -1030,6 +1037,32 @@ select.voice-select option {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
+}
+
+.webgpu-diag-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--border, rgba(148, 163, 184, 0.4));
+    border-radius: 100px;
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.webgpu-diag-btn:hover {
+    border-color: var(--primary, #818cf8);
+    color: var(--text, #e2e8f0);
+}
+
+.webgpu-diag-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .clear-models-link {
