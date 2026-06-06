@@ -1219,6 +1219,7 @@ a:hover {
 
 .card-thumbnail-wrapper {
     position: relative;
+    display: block;
     width: 100%;
     aspect-ratio: 16/9;
     overflow: hidden;
@@ -2075,3 +2076,83 @@ a:hover {
         display: none;
     }
 }
+
+/* ===== Video modal (inline episode playback) ===== */
+.video-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.video-modal[hidden] { display: none; }
+.video-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 5, 15, 0.8);
+    backdrop-filter: blur(4px);
+}
+.video-modal-content {
+    position: relative;
+    width: min(900px, 100%);
+    background: var(--surface, #12122a);
+    border: 1px solid var(--border, rgba(129, 140, 248, 0.2));
+    border-radius: var(--radius-lg, 16px);
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+.video-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+}
+.video-modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--ink, #fff);
+}
+.video-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--ink-muted, #9aa1c9);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+.video-modal-close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+.video-modal-embed {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+}
+.video-modal-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.video-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 14px 18px;
+}
+.video-modal-yt {
+    color: var(--primary, #818cf8);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+}
+.video-modal-yt:hover { text-decoration: underline; }

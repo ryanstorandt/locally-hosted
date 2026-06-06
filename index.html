@@ -195,6 +195,20 @@
         </div>
     </footer>
 
+    <div id="videoModal" class="video-modal" hidden>
+        <div class="video-modal-backdrop" data-close></div>
+        <div class="video-modal-content" role="dialog" aria-modal="true" aria-label="Episode video">
+            <div class="video-modal-header">
+                <h3 id="videoModalTitle" class="video-modal-title"></h3>
+                <button type="button" class="video-modal-close" data-close aria-label="Close video">✕</button>
+            </div>
+            <div class="video-modal-embed" id="videoModalPlayer"></div>
+            <div class="video-modal-footer">
+                <a id="videoModalYouTube" class="video-modal-yt" href="#" target="_blank" rel="noopener">Open on YouTube ↗</a>
+            </div>
+        </div>
+    </div>
+
     <script>
         // State
         let allEpisodes = [];
@@ -228,6 +242,10 @@
             }).join('');
         }
 
+        function getYoutubeId(ep) {
+            return ep.youtube_id || ep.youtube_url?.split('v=')?.pop()?.split('&')[0] || '';
+        }
+
         function renderEpisodeCard(ep) {
             const date = new Date(ep.published_at).toLocaleDateString('en-US', { 
                 year: 'numeric', month: 'short', day: 'numeric' 
@@ -235,13 +253,17 @@
             const sourceLink = ep.source_url 
                 ? `<a href="${ep.source_url}" class="episode-source" target="_blank" rel="noopener">Source ↗</a>` 
                 : '';
-            const youtubeId = ep.youtube_id || ep.youtube_url?.split('v=')?.pop()?.split('&')[0] || '';
-            const thumbnailSrc = ep.thumbnail ? `/episodes/${ep.id}/thumbnail.png` : '';
+            const youtubeId = getYoutubeId(ep);
+            const watchUrl = youtubeId ? `https://www.youtube.com/watch?v=${youtubeId}` : (ep.source_url || '#');
+            const playAttrs = youtubeId ? `class="episode-play" href="${watchUrl}" target="_blank" rel="noopener" data-youtube-id="${youtubeId}"` : `href="${watchUrl}"`;
+            const localThumb = ep.thumbnail ? `/episodes/${ep.id}/thumbnail.png` : '';
+            const ytThumbUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : '';
+            const thumbnailSrc = localThumb || ytThumbUrl;
             
             return `
                 <article class="episode-card" data-id="${ep.id}" data-tags="${(ep.tags || []).join(',').toLowerCase()}">
-                    <div class="card-thumbnail-wrapper">
-                        ${ep.thumbnail 
+                    <a class="card-thumbnail-wrapper ${youtubeId ? 'episode-play' : ''}" ${youtubeId ? `href="${watchUrl}" target="_blank" rel="noopener" data-youtube-id="${youtubeId}"` : `href="${watchUrl}"`} aria-label="Play ${ep.title}">
+                        ${thumbnailSrc 
                             ? `<img src="${thumbnailSrc}" alt="" class="episode-thumbnail" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                                <div class="thumbnail-placeholder" style="display:none;background:linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);">
                                     <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(129,140,248,0.4)" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -249,13 +271,13 @@
                             : `<div class="thumbnail-placeholder gradient-alt"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(129,140,248,0.3)" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`
                         }
                         ${youtubeId ? `<div class="play-button"><svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg></div>` : ''}
-                    </div>
+                    </a>
                     <div class="card-body">
                         <div class="card-meta-row">
                             <span class="episode-date">${date}</span>
                             <span class="episode-id">#${ep.id}</span>
                         </div>
-                        <h3 class="episode-title"><a href="./episodes/index.html?id=${ep.id}">${ep.title}</a></h3>
+                        <h3 class="episode-title"><a ${playAttrs}>${ep.title}</a></h3>
                         ${ep.description ? `<p class="episode-description">${ep.description.substring(0, 120)}${ep.description.length > 120 ? '...' : ''}</p>` : ''}
                         <div class="card-footer">
                             <div class="card-tags">${renderTags(ep.tags)}</div>
@@ -309,6 +331,47 @@
             renderEpisodes(sorted);
         }
 
+        // Video modal: play an episode's YouTube video inline without leaving the page.
+        const videoModal = document.getElementById('videoModal');
+        const videoModalPlayer = document.getElementById('videoModalPlayer');
+        const videoModalTitle = document.getElementById('videoModalTitle');
+        const videoModalYouTube = document.getElementById('videoModalYouTube');
+
+        function openVideoModal(youtubeId, title) {
+            if (!youtubeId) return;
+            videoModalTitle.textContent = title || '';
+            videoModalYouTube.href = `https://www.youtube.com/watch?v=${youtubeId}`;
+            videoModalPlayer.innerHTML = `<iframe src="https://www.youtube.com/embed/${youtubeId}?autoplay=1" title="${title || 'Episode video'}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+            videoModal.hidden = false;
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeVideoModal() {
+            videoModal.hidden = true;
+            videoModalPlayer.innerHTML = ''; // stop playback
+            document.body.style.overflow = '';
+        }
+
+        videoModal.addEventListener('click', (e) => {
+            if (e.target.hasAttribute('data-close')) closeVideoModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !videoModal.hidden) closeVideoModal();
+        });
+
+        // Intercept episode clicks to play inline; let modifier/middle clicks open YouTube in a new tab.
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('.episode-play');
+            if (!link) return;
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            const ytId = link.dataset.youtubeId;
+            if (!ytId) return;
+            e.preventDefault();
+            const container = link.closest('[data-id]');
+            const ep = container ? allEpisodes.find(x => x.id === container.dataset.id) : null;
+            openVideoModal(ytId, ep ? ep.title : '');
+        });
+
         // View toggle (cards / table)
         const viewToggle = document.getElementById('viewToggle');
         if (viewToggle) {
@@ -346,7 +409,7 @@
             return episodes.map(ep => `
                 <tr data-id="${ep.id}">
                     <td class="col-title">
-                        <a href="./episodes/index.html?id=${ep.id}" class="col-title-link">${ep.title}</a>
+                        ${getYoutubeId(ep) ? `<a class="col-title-link episode-play" href="https://www.youtube.com/watch?v=${getYoutubeId(ep)}" target="_blank" rel="noopener" data-youtube-id="${getYoutubeId(ep)}">${ep.title}</a>` : `<span class="col-title-link">${ep.title}</span>`}
                         ${ep.description ? `<span class="col-desc">${ep.description.substring(0, 80)}${ep.description.length > 80 ? '…' : ''}</span>` : ''}
                     </td>
                     <td>${ep.source_url ? `<a href="${ep.source_url}" target="_blank" rel="noopener noopener" class="col-link">Source ↗</a>` : '<span class="col-empty">—</span>'}</td>
@@ -374,27 +437,27 @@
                     return;
                 }
                 
-                renderEpisodes([...allEpisodes].sort((a, b) => new Date(b.published_at) - new Date(a.published_at)));
+                refreshEpisodes();
                 
-                // Inject minimal episode summary into agent greeting
+                // Expose episodes for the agent: a compact, newest-first list used for
+                // lightweight retrieval in generateResponse() (only a few are injected
+                // per turn so we never exceed the model's small context window).
                 const count = allEpisodes.length;
-                const summary = allEpisodes.map(ep => {
-                    const shortId = ep.id.replace(/\D/g, '').substring(0, 3);
-                    return `#${shortId}|${ep.title}|${(ep.tags||[]).join(',')}`;
-                }).join(' | ');
+                const byNewest = [...allEpisodes].sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+                window.__episodes = byNewest.map(ep => ({
+                    id: ep.id,
+                    title: ep.title,
+                    tags: (ep.tags || []).join(','),
+                    desc: (ep.description || '').slice(0, 180),
+                    date: (ep.published_at || '').slice(0, 10),
+                    url: getYoutubeId(ep) ? `https://www.youtube.com/watch?v=${getYoutubeId(ep)}` : ''
+                }));
+                window.__episodeCount = count;
                 
                 const greetingText = document.getElementById('agentGreetingText');
                 if (greetingText) {
                     greetingText.textContent = count === 1 ? '1 episode loaded — ask me anything!' : `${count} episodes loaded — ask me anything!`;
                 }
-                if (window.__episodeSummary) window.__episodeSummary += ' | ' + summary;
-                else window.__episodeSummary = summary;
-                
-                // Full detail for explicit episode queries
-                window.__episodeFull = allEpisodes.map(ep => {
-                    const url = `https://ryanstorandt.github.io/locally-hosted/episodes/index.html?id=${ep.id}`;
-                    return `#${ep.id} | ${ep.title} | ${ep.description?.substring(0, 60) || ''} | ${ep.tags?.join(',') || 'n/a'} | ${url}`;
-                }).join('\n');
                 
             } catch (e) {
                 document.getElementById('episodesGrid').innerHTML = 
@@ -426,6 +489,9 @@
         let messages = [];
         let engine = null;
         let modelLoaded = false;
+        
+        // Common words ignored when matching a query against episodes.
+        const STOP_WORDS = new Set(['the','and','for','are','what','which','who','how','about','your','you','our','this','that','with','have','has','can','tell','show','give','any','all','was','were','from','into','more','most','latest','newest','recent','last','episode','episodes','video','videos','short','shorts','please','there']);
         
         // Queue for chips clicked during model download
         let queuedMessage = null;
@@ -805,7 +871,10 @@
         // Unified send function — the ONLY way to send messages now
         async function sendAgentMessage(text) {
             if (!heroInput || !modelLoaded) return;
-            const input = text || heroInput.value.trim();
+            // `text` is only a real message when passed explicitly (chips, pending, retry).
+            // When used as an event listener the click Event is passed, so ignore non-strings.
+            const provided = typeof text === 'string' ? text.trim() : '';
+            const input = provided || heroInput.value.trim();
             if (!input) return;
             
             // Stop any in-flight speech or dictation before sending
@@ -847,22 +916,37 @@
                 // Build base system message
                 let sysMsg = { role: 'system', content: SYSTEM_PROMPT };
                 
-                // Always ground the model in the available episodes (read lazily —
-                // loadEpisodes populates these in parallel with model download).
-                if (window.__episodeSummary) {
-                    sysMsg.content += '\n\nEPISODES (the only episodes that exist):\n' + window.__episodeSummary;
-                } else {
+                // Ground the model in the episodes using lightweight retrieval: inject only
+                // a few relevant episodes so the prompt stays within the small context window.
+                const eps = window.__episodes || [];
+                if (!eps.length) {
                     sysMsg.content += '\n\nEPISODES: none are published yet.';
-                }
-                
-                // Dynamic full episode context on explicit queries
-                const query = userText.toLowerCase();
-                if (/episode|topics|list|show.*ep|what do i have|what do you have/i.test(query) && window.__episodeFull) {
-                    sysMsg.content += '\n\nEPISODES DETAIL:\n' + window.__episodeFull;
+                } else {
+                    const q = userText.toLowerCase();
+                    const wantsLatest = /\b(latest|newest|recent|last|most recent)\b/.test(q);
+                    let picked;
+                    if (wantsLatest) {
+                        picked = eps.slice(0, 3); // eps is newest-first
+                    } else {
+                        const words = (q.match(/[a-z0-9]{3,}/g) || []).filter(w => !STOP_WORDS.has(w));
+                        const scored = eps.map(ep => {
+                            const hay = (ep.title + ' ' + ep.tags + ' ' + ep.desc).toLowerCase();
+                            let s = 0;
+                            for (const w of words) if (hay.includes(w)) s++;
+                            return { ep, s };
+                        }).filter(x => x.s > 0).sort((a, b) => b.s - a.s);
+                        picked = scored.slice(0, 5).map(x => x.ep);
+                        if (!picked.length) picked = eps.slice(0, 3); // fallback: a few newest
+                    }
+                    const lines = picked.map(ep => {
+                        const topics = ep.tags.split(',').filter(Boolean).slice(0, 4).join(', ');
+                        return `- ${ep.id} (published ${ep.date}): "${ep.title}". Topics: ${topics}. Summary: ${ep.desc}`;
+                    }).join('\n');
+                    sysMsg.content += `\n\nThere are ${eps.length} episodes total. Only these episodes exist; do not invent others. Use the exact "published" date shown; never guess dates. When you tell the user about an episode, reply in a natural sentence or two using the title, date, and a bit of the summary — never paste raw data lines, tags, episode IDs, or URLs.\n\nRelevant episodes:\n${lines}`;
                 }
                 
                 const completion = await engine.chat.completions.create({
-                    messages: [sysMsg, ...messages],
+                    messages: [sysMsg, ...messages.slice(-6)],
                     temperature: 0.3, max_tokens: 200, stream: true
                 });
                 
@@ -902,7 +986,7 @@
         }
         
         // Event listeners — hero only now
-        if (heroSend) heroSend.addEventListener('click', sendAgentMessage);
+        if (heroSend) heroSend.addEventListener('click', () => sendAgentMessage());
         if (heroInput) heroInput.addEventListener('keydown', (e) => { 
             if (e.key === 'Enter' && !e.shiftKey) { 
                 e.preventDefault(); 
