@@ -54,6 +54,10 @@
                         AI-powered, runs in your browser — no API keys, no cloud
                     </div>
                     <p class="agent-greeting-text" id="agentGreetingText">Ask me about our AI/tech episodes, trending topics, or the repo.</p>
+                    <button class="start-chat-btn" id="startChatBtn">🚀 Start Chatting (~300MB)</button>
+                    <div class="clear-models-link" style="font-size: 0.85rem; margin-top: 6px;">
+                        <span>🗑 Clear models: DevTools → Application → Storage → Clear site data</span>
+                    </div>
                     <div class="suggestions-row">
                         <button class="suggestion-chip" data-query="What episodes do I have?">📺 Episodes</button>
                         <button class="suggestion-chip" data-query="Show me my latest content">🆕 Latest</button>
@@ -548,64 +552,89 @@
         
         // Typing indicator helpers (inline, no panel references)
         
-        // Initialize WebLLM
-        updateHeroStatus('loading', 'Loading AI model...');
+        // Check WebGPU support immediately (user-initiated flow)
+        let webgpuSupported = false;
+        if (!navigator.gpu) {
+            updateHeroStatus('error', 'WebGPU not supported — try Chrome 113+ or Edge 113+.');
+        } else {
+            try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    updateHeroStatus('error', 'WebGPU adapter not available. Your GPU may not be supported.');
+                } else {
+                    webgpuSupported = true;
+                }
+            } catch (e) {
+                updateHeroStatus('error', 'WebGPU error: ' + e.message);
+            }
+        }
         
-        try {
-            if (!navigator.gpu) throw new Error('WebGPU not supported. Try Chrome 113+ or Edge 113+.');
-            
-            const adapter = await navigator.gpu.requestAdapter();
-            if (!adapter) throw new Error('WebGPU adapter not available. Your GPU may not be supported.');
-            
-            if (webGPUBadge) { webGPUBadge.textContent = 'WebGPU: ✓'; webGPUBadge.style.color = 'var(--success)'; }
-            
-            const MODEL_ID = 'SmolLM2-135M-Instruct-q0f16-MLC';
-            if (modelBadge) modelBadge.textContent = MODEL_ID;
+        // Show start button if WebGPU supported
+        const startBtn = document.getElementById('startChatBtn');
+        if (startBtn && webgpuSupported) {
+            startBtn.style.display = 'inline-flex';
+            const clearLink = document.querySelector('.clear-models-link');
+            if (clearLink) clearLink.style.display = 'block';
+        }
+        
+        // Model loading function (user-triggered)
+        async function loadModel() {
+            if (!startBtn) return;
+            startBtn.disabled = true;
+            startBtn.textContent = '⏳ Downloading model...';
             updateHeroStatus('loading', 'Downloading model (~300MB)...');
             
-            engine = await webllm.CreateMLCEngine(
-                MODEL_ID,
-                { initProgressCallback: (msg) => {
-                    if (msg.text) {
-                        updateHeroStatus('loading', `Loading: ${msg.text}`);
-                    }
-                }},
-                'webgpu'
-            );
+            const MODEL_ID = 'SmolLM2-135M-Instruct-q0f16_1-MLC';
+            if (modelBadge) modelBadge.textContent = MODEL_ID;
+            if (webGPUBadge) { webGPUBadge.textContent = 'WebGPU: ✓'; webGPUBadge.style.color = 'var(--success)'; }
             
-            modelLoaded = true;
-            
-            // Enable inputs
-            heroInput.disabled = false;
-            heroSend.disabled = false;
-            
-            // Send any queued message from chip clicks
-            if (queuedMessage) {
-                const q = queuedMessage;
-                const qc = queuedChip;
-                clearQueuedChip();
-                queuedMessage = null;
-                setTimeout(() => sendAgentMessage(q), 300);
+            try {
+                engine = await webllm.CreateMLCEngine(
+                    MODEL_ID,
+                    { initProgressCallback: (msg) => {
+                        if (msg.text) {
+                            updateHeroStatus('loading', `Loading: ${msg.text}`);
+                            if (startBtn) startBtn.textContent = `⏳ ${msg.text}`;
+                        }
+                    }},
+                    'webgpu'
+                );
+                
+                modelLoaded = true;
+                
+                // Hide start button, show model info
+                if (startBtn) startBtn.style.display = 'none';
+                const mbadges = document.getElementById('modelBadges');
+                if (mbadges) mbadges.style.display = 'flex';
+                
+                // Enable inputs
+                heroInput.disabled = false;
+                heroSend.disabled = false;
+                
+                // Hide greeting, show chat
+                if (agentGreeting) agentGreeting.style.display = 'none';
+                if (suggestionsEl) suggestionsEl.style.display = 'none';
+                
+                // Update badge
+                const mb = document.getElementById('modelBadge');
+                if (mb) { mb.innerHTML = `✓ ${MODEL_ID} ready`; mb.style.color = 'var(--success)'; }
+                updateHeroStatus('ready', 'AI ready');
+                
+                // Welcome message
+                addChatMessage('assistant', '⚡ Model loaded! Ask me about our AI/tech episodes, trending topics, or the repo. Keep it short and snappy!');
+                
+            } catch (e) {
+                updateHeroStatus('error', e.message);
+                if (startBtn) {
+                    startBtn.disabled = false;
+                    startBtn.textContent = '🚀 Retry Chat (~300MB)';
+                }
             }
-            
-            // Update badges
-            const mb = document.getElementById('modelBadge');
-            if (mb) { mb.innerHTML = `✓ ${MODEL_ID} ready`; mb.style.color = 'var(--success)'; }
-            const wgb = document.getElementById('webGPUBadge');
-            if (wgb) { wgb.textContent = 'WebGPU: ✓'; wgb.style.color = 'var(--success)'; }
-            const mbadges = document.getElementById('modelBadges');
-            if (mbadges) mbadges.style.display = 'flex';
-            updateHeroStatus('ready', 'AI ready');
-            
-            // Hide loading, show greeting, hide suggestions
-            if (agentGreeting) agentGreeting.style.display = 'none';
-            if (suggestionsEl) suggestionsEl.style.display = 'none';
-            
-            // Welcome message
-            addChatMessage('assistant', '⚡ Model loaded! Ask me about our AI/tech episodes, trending topics, or the repo. Keep it short and snappy!');
-            
-        } catch (e) {
-            updateHeroStatus('error', e.message);
+        }
+        
+        // Wire up start button
+        if (startBtn && webgpuSupported) {
+            startBtn.addEventListener('click', loadModel);
         }
         
         // Model picker — switch models (requires reload)

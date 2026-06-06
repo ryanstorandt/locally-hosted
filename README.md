@@ -28,7 +28,7 @@ Submit a tech article (arXiv paper, GitHub repo, blog post, Hacker News) and the
 - **Works offline** after first model download
 - **Podcast Wiki** — Browse episodes with table/cards view, suggest topics via GitHub Discussions
 
-Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports WebGPU, simply open the site and start chatting — the model downloads in the background.
+Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports WebGPU, simply open the site and click **Start Chatting** to download and use the AI model.
 
 ## Tech Stack
 
@@ -44,24 +44,16 @@ Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports 
 
 Models are stored **in your browser**, not on this machine:
 
-### Windows (Edge / Chrome)
-- **IndexedDB**: Open DevTools (F12) → Application → IndexedDB → delete any `mlc-webllm-*` databases
-- **Cache**: `edge://settings/clearBrowserData` → Advanced → **Cached images and files** → Clear
-- **Model files**: Search your `AppData\Local\Temp\` and `AppData\Local` folders for `mlc-webllm` — this is where the actual model files live
-- **Quick clear**: Search for `mlc-webllm` in File Explorer and delete any folders found
+### Clear downloaded models
 
-### Mac
-- **IndexedDB**: Open DevTools (F12) → Application → IndexedDB → delete `mlc-webllm-*` databases
-- **Cache**: `chrome://settings/clearBrowserData` → Advanced → **Cached images and files** → Clear
-- **Model files**: Search `~/Library/Caches` for `mlc-webllm`
+1. Open DevTools (F12)
+2. Go to **Application** (Chrome) or **Storage** (Edge)
+3. Click **Clear site data** at the top
+4. Confirm
 
-### Linux
-- **IndexedDB**: Open DevTools (F12) → Storage → IndexedDB → delete `mlc-webllm-*` databases
-- **Cache**: `chrome://settings/clearBrowserData` → Advanced → **Cached images and files** → Clear
-- **Model files**: Search `~/.cache` for `mlc-webllm`
+This wipes all cached models for this site instantly. No restart needed.
 
 To free disk space, use the model picker in the hero to download smaller models (SmolLM2 135M = 0.3GB).
-Each downloaded model stays until you clear the browser's IndexedDB cache.
 
 ## Contributing
 

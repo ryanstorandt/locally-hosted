@@ -904,6 +904,48 @@ a:hover {
     transform: translateY(-1px);
 }
 
+/* Start chat button */
+.start-chat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border: none;
+    border-radius: 100px;
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    box-shadow: 0 4px 12px rgba(129, 140, 248, 0.3);
+}
+
+.start-chat-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(129, 140, 248, 0.4);
+}
+
+.start-chat-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.clear-models-link {
+    font-size: 0.8rem;
+}
+
+.clear-models-link a {
+    color: var(--ink-muted);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.clear-models-link a:hover {
+    color: var(--accent);
+}
+
 /* Model info badges */
 .agent-model-info {
     display: flex;
