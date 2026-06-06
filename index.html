@@ -499,10 +499,11 @@
         // allocates a large KV-cache GPU buffer that can exhaust a phone's GPU memory
         // at load time — surfacing as "Failed to execute 'mapAsync' on 'GPUBuffer':
         // Buffer was unmapped before mapping was resolved" (an OOM/device-loss symptom).
-        // Our grounded prompt is ~800 tokens, so 2048 fits comfortably while shrinking
-        // the KV buffer 4x. Passed as the 3rd arg (chatOpts) to CreateMLCEngine.
-        const chatOpts = { context_window_size: 2048 };
-        const GEN_MAX_TOKENS = isMobile ? 160 : 200;
+        // Phones get an even tighter window (1024) so the pre-allocated KV cache leaves
+        // headroom for the transient compute buffers used during generation; our trimmed
+        // mobile prompt stays well under it. Passed as the 3rd arg (chatOpts).
+        const chatOpts = { context_window_size: isMobile ? 1024 : 2048 };
+        const GEN_MAX_TOKENS = isMobile ? 128 : 200;
         const GEN_HISTORY = isMobile ? 4 : 6;
         let isLoading = false;
         
@@ -738,6 +739,32 @@
             btn.addEventListener('click', () => speak(getText()));
             bubble.appendChild(btn);
         }
+
+        // Adds an assistant message with an inline "Reload model" button. Used for
+        // device-loss recovery — the page's main Start button lives inside the
+        // (now hidden) suggestions panel, so an in-chat button is always visible.
+        function addReloadButton(text) {
+            if (!agentChatMessages) return;
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'chat-message assistant';
+            const avatar = document.createElement('div');
+            avatar.className = 'chat-avatar';
+            avatar.textContent = '⚡';
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+            bubble.innerHTML = text.replace(/\n/g, '<br>') + '<br>';
+            const btn = document.createElement('button');
+            btn.className = 'start-chat-btn';
+            btn.type = 'button';
+            btn.style.marginTop = '8px';
+            btn.textContent = `🚀 Reload model (~${sizeOf(currentModel)})`;
+            btn.addEventListener('click', () => { btn.disabled = true; loadModel(); });
+            bubble.appendChild(btn);
+            msgDiv.appendChild(avatar);
+            msgDiv.appendChild(bubble);
+            agentChatMessages.appendChild(msgDiv);
+            agentChatMessages.scrollTop = agentChatMessages.scrollHeight;
+        }
         
         // Dictation via the Web Speech API (webkitSpeechRecognition)
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -854,6 +881,7 @@
                 );
                 
                 modelLoaded = true;
+                window.__lhEngine = engine; // debug handle (mirrors window.__episodes)
                 
                 // Hide start button, show model info
                 if (startBtn) startBtn.style.display = 'none';
@@ -948,6 +976,7 @@
                     );
                     
                     modelLoaded = true;
+                    window.__lhEngine = engine; // debug handle (mirrors window.__episodes)
                     heroInput.disabled = false;
                     heroSend.disabled = false;
                     if (micBtn && SR) micBtn.disabled = false;
@@ -1074,6 +1103,8 @@
                         picked = scored.slice(0, 5).map(x => x.ep);
                         if (!picked.length) picked = eps.slice(0, 3); // fallback: a few newest
                     }
+                    // On phones, keep the prompt small to limit prefill GPU memory.
+                    if (isMobile) { picked = picked.slice(0, 3); maxDesc = Math.min(maxDesc, 200); }
                     const lines = picked.map(ep => {
                         const num = parseInt(ep.id.replace(/\D/g, ''), 10);
                         const topics = ep.tags.split(',').filter(Boolean).slice(0, 4).join(', ');
@@ -1131,12 +1162,7 @@
                     try { if (engine) await engine.dispose(); } catch (_) {}
                     engine = null;
                     modelLoaded = false;
-                    addChatMessage('assistant', '📱 The GPU dropped the model — likely low memory. Tap "🚀 Reload model" below to start it again (already using the lightest model and a compact context window).');
-                    if (startBtn) {
-                        startBtn.style.display = 'block';
-                        startBtn.disabled = false;
-                        startBtn.textContent = `🚀 Reload model (~${sizeOf(currentModel)})`;
-                    }
+                    addReloadButton('📱 The GPU dropped the model — likely low memory. Tap below to reload (already using the lightest model and a compact context window).');
                     updateHeroStatus('error', 'GPU lost the model — reload to continue.');
                 } else {
                     addChatMessage('assistant', `⚠️ Error: ${msg}`);
