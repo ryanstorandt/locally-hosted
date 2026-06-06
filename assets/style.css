@@ -2195,6 +2195,13 @@ select.voice-select option {
     user-select: none;
 }
 
+/* === Persistent "Explore by topic" bar (outside scrollable area) === */
+.agent-suggested-topics-bar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(17, 17, 37, 0.5);
+}
+
 /* === Suggested topic chips (shown after model loads) === */
 .suggested-topics {
     padding: 12px 16px;

@@ -46,12 +46,19 @@
                 
                 
                 <div class="agent-chat-messages" id="agentChatMessages" style="display:none;">
-                    <div class="suggested-topics" id="suggestedTopics">
+                    <!-- Messages stream here -->
+                </div>
+                
+                <!-- Persistent "Explore by topic" bar (outside scrollable area) -->
+                <div class="agent-suggested-topics-bar" id="agentSuggestedTopicsBar" style="display:none;">
+                    <div class="suggested-topics">
                         <p class="suggested-topics-label">Explore by topic:</p>
                         <div class="suggested-topics-row" id="suggestedTopicsRow"></div>
                     </div>
-                    <!-- Messages stream here -->
                 </div>
+                
+                <!-- Persistent disclaimer (always visible during chat) -->
+                <div class="hallucination-disclaimer" id="hallucinationDisclaimer" style="display:none;">⚠️ SLM-powered: funny, fast, and occasionally wrong. It's free tokens after all!</div>
                 
                 <!-- Suggestions shown when no messages yet -->
                 <div class="agent-suggestions" id="agentSuggestions">
@@ -60,7 +67,6 @@
                         AI-powered, runs in your browser — no API keys, no cloud
                     </div>
                     <p class="agent-greeting-text" id="agentGreetingText">Ask me about our AI/tech episodes, trending topics, or the repo.</p>
-                    <div class="hallucination-disclaimer">⚠️ SLM-powered: funny, fast, and occasionally wrong. It's free tokens after all!</div>
                     <div class="suggestions-row">
                         <button class="suggestion-chip" data-query="What episodes do I have?">📺 Episodes</button>
                         <button class="suggestion-chip" data-query="Show me my latest content">🆕 Latest</button>
@@ -584,7 +590,10 @@
             msgDiv.appendChild(avatar);
             msgDiv.appendChild(bubble);
             agentChatMessages.appendChild(msgDiv);
-            agentChatMessages.scrollTop = agentChatMessages.scrollHeight;
+            
+            // Append message without forcing scroll-to-bottom so the persistent
+            // "Explore by topic" bar above the chat area remains visible.
+            // Users can still scroll freely within the messages area.
         }
         
         // == Voice: spoken replies (TTS) + dictation (speech-to-text) ==
@@ -866,6 +875,11 @@
             // Show chat area, hide suggestions
             if (agentChatMessages) agentChatMessages.style.display = 'flex';
             if (suggestionsEl) suggestionsEl.style.display = 'none';
+            // Show persistent bar and disclaimer
+            const topicsBar = document.getElementById('agentSuggestedTopicsBar');
+            if (topicsBar) topicsBar.style.display = 'block';
+            const disclaimer = document.getElementById('hallucinationDisclaimer');
+            if (disclaimer) disclaimer.style.display = 'block';
             
             startBtn.disabled = true;
             startBtn.textContent = '⏳ Downloading model...';
@@ -1012,7 +1026,6 @@
         // Load suggested topic chips from episode tags
         async function loadSuggestedTopics() {
             const container = document.getElementById('suggestedTopicsRow');
-            const label = document.getElementById('suggestedTopicsLabel');
             if (!container) return;
             
             // Top 12 most frequent tags from episodes
@@ -1225,7 +1238,11 @@
                     // Model ready: send immediately
                     sendAgentMessage(query);
                 } else {
-                    // Model not loaded: start loading (same as Start Chatting)
+                    // Model not loaded: queue the query and start loading
+                    queuedMessage = query;
+                    queuedChip = chip;
+                    chip.style.borderColor = 'var(--primary)';
+                    chip.style.background = 'rgba(129, 140, 248, 0.12)';
                     loadModel();
                 }
             });
