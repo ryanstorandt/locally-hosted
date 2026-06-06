@@ -387,7 +387,7 @@
                     id: ep.id,
                     title: ep.title,
                     tags: (ep.tags || []).join(','),
-                    desc: (ep.description || '').slice(0, 80),
+                    desc: (ep.description || '').slice(0, 180),
                     date: (ep.published_at || '').slice(0, 10),
                     url: `https://ryanstorandt.github.io/locally-hosted/episodes/index.html?id=${ep.id}`
                 }));
@@ -877,8 +877,11 @@
                         picked = scored.slice(0, 5).map(x => x.ep);
                         if (!picked.length) picked = eps.slice(0, 3); // fallback: a few newest
                     }
-                    const lines = picked.map(ep => `#${ep.id} | published ${ep.date} | ${ep.title} | ${ep.tags} | ${ep.url}`).join('\n');
-                    sysMsg.content += `\n\nThere are ${eps.length} episodes total (newest first above). Only these episodes exist; do not invent others. Use the exact "published" date shown for each episode; never guess or invent dates. Relevant episodes:\n${lines}`;
+                    const lines = picked.map(ep => {
+                        const topics = ep.tags.split(',').filter(Boolean).slice(0, 4).join(', ');
+                        return `- ${ep.id} (published ${ep.date}): "${ep.title}". Topics: ${topics}. Summary: ${ep.desc}`;
+                    }).join('\n');
+                    sysMsg.content += `\n\nThere are ${eps.length} episodes total. Only these episodes exist; do not invent others. Use the exact "published" date shown; never guess dates. When you tell the user about an episode, reply in a natural sentence or two using the title, date, and a bit of the summary — never paste raw data lines, tags, episode IDs, or URLs.\n\nRelevant episodes:\n${lines}`;
                 }
                 
                 const completion = await engine.chat.completions.create({
