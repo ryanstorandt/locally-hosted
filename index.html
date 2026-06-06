@@ -877,8 +877,8 @@
                         picked = scored.slice(0, 5).map(x => x.ep);
                         if (!picked.length) picked = eps.slice(0, 3); // fallback: a few newest
                     }
-                    const lines = picked.map(ep => `#${ep.id} | ${ep.title} | ${ep.tags} | ${ep.url}`).join('\n');
-                    sysMsg.content += `\n\nThere are ${eps.length} episodes total (newest first above). Only these episodes exist; do not invent others. Relevant episodes:\n${lines}`;
+                    const lines = picked.map(ep => `#${ep.id} | published ${ep.date} | ${ep.title} | ${ep.tags} | ${ep.url}`).join('\n');
+                    sysMsg.content += `\n\nThere are ${eps.length} episodes total (newest first above). Only these episodes exist; do not invent others. Use the exact "published" date shown for each episode; never guess or invent dates. Relevant episodes:\n${lines}`;
                 }
                 
                 const completion = await engine.chat.completions.create({
