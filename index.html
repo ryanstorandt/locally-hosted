@@ -930,12 +930,23 @@
 
                     // Direct episode-number lookups: "episode 3", "ep 3", "ep3", "#1", "episode #007".
                     const numMatches = [];
+                    const addNum = (n) => {
+                        const ep = byId.get('ep' + String(n).padStart(3, '0'));
+                        if (ep && !numMatches.includes(ep)) numMatches.push(ep);
+                    };
                     const numRe = /(?:\b(?:episode|ep)\.?\s*#?\s*|#)0*(\d{1,3})\b/g;
                     let nm;
-                    while ((nm = numRe.exec(q)) !== null) {
-                        const ep = byId.get('ep' + nm[1].padStart(3, '0'));
-                        if (ep && !numMatches.includes(ep)) numMatches.push(ep);
-                    }
+                    while ((nm = numRe.exec(q)) !== null) addNum(nm[1]);
+
+                    // Word-form numbers tied to an episode reference: "episode one", "third episode".
+                    const WORD_NUM = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
+                        one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+                    const wordNumRe = /\b(?:episode|ep)\.?\s+(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|one|two|three|four|five|six|seven|eight|nine|ten)\b|\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\s+(?:episode|ep|one|video)\b/g;
+                    let wm;
+                    while ((wm = wordNumRe.exec(q)) !== null) addNum(WORD_NUM[wm[1] || wm[2]]);
+
+                    // "the oldest / earliest / very first episode" -> the very first episode.
+                    if (/\b(oldest|earliest|very first)\b/.test(q)) addNum(1);
 
                     const wantsLatest = /\b(latest|newest|recent|last|most recent)\b/.test(q);
                     let picked, maxDesc = 180;
