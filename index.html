@@ -429,7 +429,7 @@
         // Load episodes
         async function loadEpisodes() {
             try {
-                const resp = await fetch('/episodes.json');
+                const resp = await fetch('./episodes.json');
                 if (!resp.ok) throw new Error('Failed to load episodes');
                 allEpisodes = await resp.json();
                 
@@ -584,7 +584,7 @@
             startBtn.textContent = '⏳ Downloading model...';
             updateHeroStatus('loading', 'Downloading model (~300MB)...');
             
-            const MODEL_ID = 'SmolLM2-135M-Instruct-q0f16_1-MLC';
+            const MODEL_ID = 'SmolLM2-135M-Instruct-q0f16-MLC';
             if (modelBadge) modelBadge.textContent = MODEL_ID;
             if (webGPUBadge) { webGPUBadge.textContent = 'WebGPU: ✓'; webGPUBadge.style.color = 'var(--success)'; }
             
