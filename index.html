@@ -61,16 +61,17 @@
                     </div>
                     <p class="agent-greeting-text" id="agentGreetingText">Ask me about our AI/tech episodes, trending topics, or the repo.</p>
                     <div class="hallucination-disclaimer">⚠️ SLM-powered: funny, fast, and occasionally wrong. It's free tokens after all!</div>
-                    <button class="start-chat-btn" id="startChatBtn" style="display:none;">🚀 Start Chatting (~0.3GB)</button>
-                    <div class="clear-models-link" id="clearModelsLink" style="display:none; font-size: 0.85rem; margin-top: 6px; text-align: center;">
-                        <span>🗑 Clear models: DevTools → Application → Storage → Clear site data</span>
-                    </div>
                     <div class="suggestions-row">
                         <button class="suggestion-chip" data-query="What episodes do I have?">📺 Episodes</button>
                         <button class="suggestion-chip" data-query="Show me my latest content">🆕 Latest</button>
                         <button class="suggestion-chip" data-query="What's trending in AI right now?">🔥 Trending</button>
                         <button class="suggestion-chip" data-query="Find something about web development">💻 Web dev</button>
+                        <button class="suggestion-chip" data-query="What is ai agents?">🤖 AI Agents</button>
+                        <button class="suggestion-chip" data-query="What is local ai?">💻 Local AI</button>
+                        <button class="suggestion-chip" data-query="What is build 2026?">🏗️ Build 2026</button>
+                        <button class="suggestion-chip" data-query="Show me something cool about AI">✨ Surprise me</button>
                     </div>
+                    <button class="start-chat-btn" id="startChatBtn" style="display:none;">🚀 Start Chatting (~0.3GB)</button>
                 </div>
                 
                 <div class="agent-chat-input-row" id="agentChatInputRow" style="display:none;">
@@ -556,6 +557,9 @@
             if (modelStatusText) modelStatusText.textContent = text;
         }
         
+        // Set initial status to yellow (waiting)
+        updateHeroStatus('loading', 'Waiting to download AI model...');
+        
         // Unified message addition (hero only — no panel)
         function addChatMessage(role, text) {
             if (!agentChatMessages) return;
@@ -851,8 +855,6 @@
         if (startBtn && webgpuSupported) {
             startBtn.style.display = 'inline-flex';
             startBtn.textContent = `🚀 Start Chatting (~${sizeOf(currentModel)})`;
-            const clearLink = document.querySelector('.clear-models-link');
-            if (clearLink) clearLink.style.display = 'block';
         }
         
         // Model loading function (user-triggered)
@@ -1215,7 +1217,7 @@
             this.style.height = Math.min(this.scrollHeight, 200) + 'px';
         });
         
-        // Suggestion chips — WORKS before AND after model loads
+        // Suggestion chips — trigger loadModel if not loaded, else send query
         document.querySelectorAll('.suggestion-chip').forEach(chip => {
             chip.addEventListener('click', () => {
                 const query = chip.dataset.query;
@@ -1223,12 +1225,8 @@
                     // Model ready: send immediately
                     sendAgentMessage(query);
                 } else {
-                    // Model loading: queue the query
-                    queuedMessage = query;
-                    queuedChip = chip;
-                    // Visual feedback: show queued state on chip
-                    chip.style.borderColor = 'var(--primary)';
-                    chip.style.background = 'rgba(129,140,248,0.2)';
+                    // Model not loaded: start loading (same as Start Chatting)
+                    loadModel();
                 }
             });
         });
