@@ -1,5 +1,22 @@
 [
   {
+    "id": "ep059",
+    "title": "AI Writes jQuery & Bloated Code | Modern Web Repo Review",
+    "description": "Is your AI coding agent about to write jQuery for a simple modal? Alex and Sam unpack Google's Modern Web Guidance source repo, exposing why models generate bloated code and how we can fix it.",
+    "source_url": "https://github.com/GoogleChrome/modern-web-guidance-src",
+    "youtube_short_url": "https://youtube.com/shorts/ydybEiz2TUs?feature=share",
+    "youtube_url": "https://www.youtube.com/watch?v=6BkQDC_sfOM",
+    "spotify_url": "",
+    "tags": [
+      "AI coding agents",
+      "jQuery vs Modern Web",
+      "Google Chrome repo",
+      "Modern Web Guidance",
+      "GitHub repo review"
+    ],
+    "published_at": "2026-06-06T18:46:06.000Z"
+  },
+  {
     "id": "ep058",
     "title": "Hermes Agent: The AI That Grows With You",
     "description": "What if your AI agent could learn and evolve alongside you? Meet Hermes Agent, the open-source powerhouse from NousResearch that's redefining autonomous AI. In this episode of Locally Hosted, Alex and Sam dive deep into the Hermes Agent repository that has rapidly become a community favorite.",
