@@ -525,6 +525,15 @@
         const chatOpts = { context_window_size: isMobile ? 768 : 2048 };
         const GEN_MAX_TOKENS = isMobile ? 128 : 200;
         const GEN_HISTORY = isMobile ? 2 : 6;
+
+        // DIAGNOSTIC: when true, the mobile path sends the smallest possible prompt
+        // (one short system line, NO episode grounding) and a short generation. This
+        // isolates whether the device's GPU can generate at all, separate from prompt
+        // size. If a basic question works with this on, the issue was prefill size and
+        // we can re-introduce grounding; if it still drops the GPU, in-browser f16
+        // inference is unstable on this device regardless of prompt. Flip to false to
+        // restore full episode grounding on mobile.
+        const MOBILE_MINIMAL_TEST = true;
         let isLoading = false;
         
         // Load system instructions from .md file
@@ -1242,12 +1251,18 @@
             try {
                 // Build base system message
                 let sysMsg = { role: 'system', content: isMobile ? MOBILE_SYSTEM_PROMPT : SYSTEM_PROMPT };
-                
+
+                // DIAGNOSTIC mobile path: smallest possible prompt, no episode grounding.
+                if (isMobile && MOBILE_MINIMAL_TEST) {
+                    sysMsg = { role: 'system', content: 'You are the friendly assistant for the "Locally Hosted" AI podcast about AI and web development. Answer in one short, helpful sentence.' };
+                    console.log('[agent] MINIMAL TEST: no episode grounding; system prompt =', JSON.stringify(sysMsg.content));
+                }
+
                 // Ground the model in the episodes using lightweight retrieval: inject only
                 // a few relevant episodes so the prompt stays within the small context window.
-                const eps = window.__episodes || [];
+                const eps = (isMobile && MOBILE_MINIMAL_TEST) ? [] : (window.__episodes || []);
                 if (!eps.length) {
-                    sysMsg.content += '\n\nEPISODES: none are published yet.';
+                    if (!(isMobile && MOBILE_MINIMAL_TEST)) sysMsg.content += '\n\nEPISODES: none are published yet.';
                 } else {
                     const q = userText.toLowerCase();
                     const byId = new Map(eps.map(ep => [ep.id, ep]));
@@ -1325,7 +1340,9 @@
                 
                 const completion = await engine.chat.completions.create({
                     messages: [sysMsg, ...messages.slice(-GEN_HISTORY)],
-                    temperature: 0.3, max_tokens: GEN_MAX_TOKENS, stream: true
+                    temperature: 0.3,
+                    max_tokens: (isMobile && MOBILE_MINIMAL_TEST) ? 64 : GEN_MAX_TOKENS,
+                    stream: true
                 });
                 
                 hideElement(typing);
