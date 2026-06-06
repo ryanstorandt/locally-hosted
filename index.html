@@ -485,7 +485,7 @@
 
     <script type="module">
     // == AI Agent with WebLLM ==
-    const webllm = await import("https://esm.run/@mlc-ai/web-llm");
+    const webllm = await import("https://esm.run/@mlc-ai/web-llm@0.2.84");
     (async function() {
         let SYSTEM_PROMPT = 'You are a helpful AI assistant.'; // Default fallback
 
@@ -533,6 +533,20 @@
         let messages = [];
         let engine = null;
         let modelLoaded = false;
+
+        // The model runs inside a dedicated module worker (worker.js) so heavy
+        // inference doesn't block the main UI thread. One worker is reused for
+        // the life of the page (and recreated only if the GPU device is lost).
+        let worker = null;
+        // True while a generation is streaming, so we can interrupt and wait
+        // for it to settle before reloading the engine on a model switch.
+        let isGenerating = false;
+        function getWorker() {
+            if (!worker) {
+                worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+            }
+            return worker;
+        }
         
         // Common words ignored when matching a query against episodes.
         const STOP_WORDS = new Set(['the','and','for','are','what','which','who','how','about','your','you','our','this','that','with','have','has','can','tell','show','give','any','all','was','were','from','into','more','most','latest','newest','recent','last','episode','episodes','video','videos','short','shorts','please','there']);
@@ -890,7 +904,8 @@
             if (webGPUBadge) { webGPUBadge.textContent = 'WebGPU: ✓'; webGPUBadge.style.color = 'var(--success)'; }
             
             try {
-                engine = await webllm.CreateMLCEngine(
+                engine = await webllm.CreateWebWorkerMLCEngine(
+                    getWorker(),
                     MODEL_ID,
                     { initProgressCallback: (msg) => {
                         if (msg.text) {
@@ -974,13 +989,17 @@
                 
                 addChatMessage('assistant', `🔄 Switching from ${currentModel.split('-q4')[0]} to ${newModel.split('-q4')[0]}...`);
                 
-                // Dispose old engine
-                if (engine) {
-                    try { await engine.dispose(); } catch (e) {}
-                    engine = null;
-                }
+                // Reuse the existing worker + engine and just swap the weights.
+                // (Disposing/recreating would tear down the worker thread.)
                 modelLoaded = false;
-                
+
+                // If a response is still streaming, interrupt it and wait for it
+                // to settle so reload() doesn't race an in-flight generation.
+                if (isGenerating) {
+                    try { engine.interruptGenerate(); } catch (_) {}
+                    while (isGenerating) { await new Promise(r => setTimeout(r, 50)); }
+                }
+
                 // Update UI for reload
                 currentModel = newModel;
                 if (modelBadge) modelBadge.textContent = `Loading ${newModel.split('-q4')[0]}...`;
@@ -989,15 +1008,12 @@
                 // Re-load the new model
                 try {
                     updateHeroStatus('loading', `Loading: ${newModel}...`);
-                    engine = await webllm.CreateMLCEngine(
-                        newModel,
-                        { initProgressCallback: (msg) => {
-                            if (msg.text) {
-                                updateHeroStatus('loading', `Loading: ${msg.text}`);
-                            }
-                        }},
-                        chatOpts
-                    );
+                    engine.setInitProgressCallback((msg) => {
+                        if (msg.text) {
+                            updateHeroStatus('loading', `Loading: ${msg.text}`);
+                        }
+                    });
+                    await engine.reload(newModel, chatOpts);
                     
                     modelLoaded = true;
                     window.__lhEngine = engine; // debug handle (mirrors window.__episodes)
@@ -1079,6 +1095,7 @@
         // Generate response (unified — writes to hero only)
         async function generateResponse(userText) {
             if (!agentChatMessages) return;
+            isGenerating = true;
             // Show typing indicator
             const typing = document.createElement('div');
             typing.className = 'chat-message assistant typing-bubble';
@@ -1204,6 +1221,10 @@
                 const deviceLost = /external instance|device.*lost|mapAsync|GPUBuffer|unmapped/i.test(msg);
                 if (deviceLost) {
                     try { if (engine) await engine.dispose(); } catch (_) {}
+                    // GPU device is gone — also tear down the worker so the next
+                    // load spins up a clean one and re-acquires the device.
+                    try { if (worker) worker.terminate(); } catch (_) {}
+                    worker = null;
                     engine = null;
                     modelLoaded = false;
                     addReloadButton('📱 The GPU dropped the model — likely low memory. Tap below to reload (already using the lightest model and a compact context window).');
@@ -1212,6 +1233,8 @@
                     addChatMessage('assistant', `⚠️ Error: ${msg}`);
                     updateHeroStatus('error', 'Error');
                 }
+            } finally {
+                isGenerating = false;
             }
         }
         

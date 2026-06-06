@@ -35,7 +35,7 @@ Requires Chrome 113+ or Edge 113+ with WebGPU support. If your browser supports 
 ## Tech Stack
 
 - **Web App**: Static GitHub Pages (HTML/CSS/JS)
-- **In-browser AI**: [WebLLM](https://github.com/mlc-ai/web-llm) + model picker (SmolLM2, TinyLlama, Gemma3, Llama 3.2)
+- **In-browser AI**: [WebLLM](https://github.com/mlc-ai/web-llm) (runs in a Web Worker, off the main thread) + model picker (SmolLM2, TinyLlama, Gemma3, Llama 3.2)
 - **Video Pipeline**: [ai-video-pipeline](https://github.com/ryanstorandt/ai-video-pipeline) — NVIDIA DGX Spark
 - **AI Video Generation**: [CogVideoX](https://github.com/THUDM/CogVideo) (2B, 5B, or 1.5-5B) — local Docker container
 - **Voice Synthesis**: [Microsoft VibeVoice](https://github.com/microsoft/VibeVoice) (local neural TTS with voice cloning) + broadcast mastering (-16 LUFS)
