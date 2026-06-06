@@ -80,41 +80,26 @@ function extractBalancedJson(html, varName) {
 }
 
 async function fetchPlayerResponse(videoId) {
-  // 1) Try the public watch page. `bpctr` + a consent cookie skip the EU/consent
-  //    interstitial that YouTube serves to datacenter IPs (e.g. CI runners),
-  //    which otherwise returns a page with no ytInitialPlayerResponse.
-  try {
-    const url = `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US&bpctr=9999999999&has_verified=1`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cookie': 'CONSENT=YES+1; SOCS=CAI',
-      },
-    });
-    if (res.ok) {
-      const pr = extractBalancedJson(await res.text(), 'ytInitialPlayerResponse');
-      if (pr && pr.videoDetails) return pr;
-    }
-  } catch { /* fall through to InnerTube */ }
-
-  // 2) Fall back to YouTube's InnerTube player API — JSON, far more resilient on
-  //    datacenter IPs. The key below is the public web-client key embedded in
-  //    every youtube.com page (not a secret). We only read metadata
-  //    (videoDetails + microformat), which this returns without any token.
-  const res = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en-US,en;q=0.9' },
-    body: JSON.stringify({
-      videoId,
-      context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } },
-    }),
+  // Scrape the public watch page for the embedded ytInitialPlayerResponse.
+  // `bpctr` + a consent cookie skip the EU/consent interstitial. This works fine
+  // from a normal (residential) IP; YouTube bot-blocks datacenter IPs, which is
+  // why this is a local script rather than a CI job.
+  const url = `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US&bpctr=9999999999&has_verified=1`;
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Cookie': 'CONSENT=YES+1; SOCS=CAI',
+    },
   });
-  if (!res.ok) throw new Error(`YouTube InnerTube API returned HTTP ${res.status} for ${videoId}`);
-  const pr = await res.json();
+  if (!res.ok) throw new Error(`YouTube returned HTTP ${res.status} for ${videoId}`);
+  const html = await res.text();
+  const pr = extractBalancedJson(html, 'ytInitialPlayerResponse');
   if (!pr || !pr.videoDetails) {
-    const reason = (pr && pr.playabilityStatus && (pr.playabilityStatus.reason || pr.playabilityStatus.status)) || 'no videoDetails';
-    throw new Error(`Could not read video metadata (${reason}) — is the video private, age-restricted, or unavailable?`);
+    if (/confirm you[’']?re not a bot|consent\.youtube/i.test(html)) {
+      throw new Error('YouTube returned a bot/consent check for this connection. Run this from your normal network (not a VPN/datacenter IP) and try again.');
+    }
+    throw new Error('Could not read video metadata — is the video private, age-restricted, or unavailable?');
   }
   return pr;
 }
