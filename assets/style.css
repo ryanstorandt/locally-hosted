@@ -2178,3 +2178,62 @@ select.voice-select option {
     font-weight: 500;
 }
 .video-modal-yt:hover { text-decoration: underline; }
+
+/* === Hallucination disclaimer === */
+.hallucination-disclaimer {
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--ink-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    padding: 4px 14px;
+    text-align: center;
+    margin: 4px auto 0;
+    max-width: 420px;
+    line-height: 1.4;
+    user-select: none;
+}
+
+/* === Suggested topic chips (shown after model loads) === */
+.suggested-topics {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(17, 17, 37, 0.5);
+}
+
+.suggested-topics-label {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.suggested-topics-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.topic-chip {
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    font-weight: 500;
+    color: var(--primary-light);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.topic-chip:hover {
+    background: var(--surface-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
