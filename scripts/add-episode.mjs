@@ -79,21 +79,48 @@ function extractBalancedJson(html, varName) {
   try { return JSON.parse(html.slice(begin, i)); } catch { return null; }
 }
 
-async function fetchMeta(videoId) {
-  const url = `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
-  });
-  if (!res.ok) throw new Error(`YouTube returned HTTP ${res.status} for ${videoId}`);
-  const html = await res.text();
+async function fetchPlayerResponse(videoId) {
+  // 1) Try the public watch page. `bpctr` + a consent cookie skip the EU/consent
+  //    interstitial that YouTube serves to datacenter IPs (e.g. CI runners),
+  //    which otherwise returns a page with no ytInitialPlayerResponse.
+  try {
+    const url = `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US&bpctr=9999999999&has_verified=1`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cookie': 'CONSENT=YES+1; SOCS=CAI',
+      },
+    });
+    if (res.ok) {
+      const pr = extractBalancedJson(await res.text(), 'ytInitialPlayerResponse');
+      if (pr && pr.videoDetails) return pr;
+    }
+  } catch { /* fall through to InnerTube */ }
 
-  const pr = extractBalancedJson(html, 'ytInitialPlayerResponse');
+  // 2) Fall back to YouTube's InnerTube player API — JSON, far more resilient on
+  //    datacenter IPs. The key below is the public web-client key embedded in
+  //    every youtube.com page (not a secret). We only read metadata
+  //    (videoDetails + microformat), which this returns without any token.
+  const res = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en-US,en;q=0.9' },
+    body: JSON.stringify({
+      videoId,
+      context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' } },
+    }),
+  });
+  if (!res.ok) throw new Error(`YouTube InnerTube API returned HTTP ${res.status} for ${videoId}`);
+  const pr = await res.json();
   if (!pr || !pr.videoDetails) {
-    throw new Error('Could not read video metadata (is the video private, age-restricted, or unavailable?)');
+    const reason = (pr && pr.playabilityStatus && (pr.playabilityStatus.reason || pr.playabilityStatus.status)) || 'no videoDetails';
+    throw new Error(`Could not read video metadata (${reason}) — is the video private, age-restricted, or unavailable?`);
   }
+  return pr;
+}
+
+async function fetchMeta(videoId) {
+  const pr = await fetchPlayerResponse(videoId);
   const vd = pr.videoDetails;
   const mf = (pr.microformat && pr.microformat.playerMicroformatRenderer) || {};
 
