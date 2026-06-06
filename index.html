@@ -938,12 +938,20 @@
                     let nm;
                     while ((nm = numRe.exec(q)) !== null) addNum(nm[1]);
 
-                    // Word-form numbers tied to an episode reference: "episode one", "third episode".
-                    const WORD_NUM = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
-                        one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
-                    const wordNumRe = /\b(?:episode|ep)\.?\s+(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|one|two|three|four|five|six|seven|eight|nine|ten)\b|\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\s+(?:episode|ep|one|video)\b/g;
-                    let wm;
-                    while ((wm = wordNumRe.exec(q)) !== null) addNum(WORD_NUM[wm[1] || wm[2]]);
+                    // Word-form numbers, e.g. "first and third episode", "episode one".
+                    const ORD = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10 };
+                    const CARD = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+                    const hasEpCtx = /\b(episode|episodes|ep|eps)\b/.test(q);
+                    if (hasEpCtx) {
+                        // Ordinals anywhere in an episode-related question: "your first and third episode".
+                        const ordRe = /\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/g;
+                        let om;
+                        while ((om = ordRe.exec(q)) !== null) addNum(ORD[om[1]]);
+                    }
+                    // Cardinals only when adjacent to an episode reference: "episode three", "ep two".
+                    const cardRe = /\b(?:episode|ep)\.?\s+#?\s*(one|two|three|four|five|six|seven|eight|nine|ten)\b/g;
+                    let cm;
+                    while ((cm = cardRe.exec(q)) !== null) addNum(CARD[cm[1]]);
 
                     // "the oldest / earliest / very first episode" -> the very first episode.
                     if (/\b(oldest|earliest|very first)\b/.test(q)) addNum(1);
@@ -973,6 +981,10 @@
                         return `- Episode ${num} (published ${ep.date}): "${ep.title}". Topics: ${topics}. Summary: ${d}`;
                     }).join('\n');
                     sysMsg.content += `\n\nThere are ${eps.length} episodes, numbered 1 (oldest) to ${newestNum} (newest). Only these episodes exist; do not invent others or make up episode numbers. Use the exact "published" date shown; never guess dates. Answer in a natural sentence or two using the episode number, title, date, and a bit of the summary — never paste raw data lines, tags, or URLs.\n\nRelevant episodes:\n${lines}`;
+                    console.log('[agent] query:', JSON.stringify(userText),
+                        '\n[agent] retrieval path:', numMatches.length ? 'episode-number' : (wantsLatest ? 'latest' : 'keyword'),
+                        '\n[agent] grounded episodes:', picked.map(ep => 'Episode ' + parseInt(ep.id.replace(/\D/g, ''), 10)).join(', ') || '(none)',
+                        '\n[agent] injected context:\n' + lines);
                 }
                 
                 const completion = await engine.chat.completions.create({
@@ -1005,6 +1017,7 @@
                     }
                 }
                 messages.push({ role: 'assistant', content: reply });
+                console.log('[agent] reply:', JSON.stringify(reply));
                 addReplayButton(bubble, () => reply);
                 if (autoSpeak) speak(reply);
                 updateHeroStatus('ready', 'AI ready');
