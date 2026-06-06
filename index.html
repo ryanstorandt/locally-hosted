@@ -79,24 +79,6 @@
         </div>
     </header>
 
-    <!-- Search & filter bar -->
-    <div class="controls-bar">
-        <div class="search-box">
-            <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input type="text" id="searchInput" class="search-input" placeholder="Search episodes by title, topic, or source..." autocomplete="off">
-            <button class="search-clear" id="searchClear" style="display:none;" aria-label="Clear search">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        <div class="filter-tabs" id="filterTabs">
-            <button class="filter-tab active" data-filter="all">All</button>
-        </div>
-    </div>
-
     <main class="container">
         <!-- Episodes section -->
         <section class="episodes-section">
@@ -212,9 +194,7 @@
     <script>
         // State
         let allEpisodes = [];
-        let activeFilter = 'all';
-        let searchQuery = '';
-        let viewMode = 'table'; // 'table' or 'cards'
+        let viewMode = 'cards'; // 'cards' or 'table'
 
         // Colors for tags
         const TAG_COLORS = {
@@ -319,64 +299,13 @@
             if (countEl) countEl.textContent = episodes.length === 1 ? '1 episode' : `${episodes.length} episodes`;
         }
 
-        function updateFilterTabs(episodes) {
-            const tags = new Set();
-            episodes.forEach(ep => (ep.tags || []).forEach(t => tags.add(t)));
-            
-            const container = document.getElementById('filterTabs');
-            const tabs = ['all', ...Array.from(tags).sort()];
-            
-            container.innerHTML = tabs.map(tag => 
-                `<button class="filter-tab ${activeFilter === tag ? 'active' : ''}" data-filter="${tag}">${tag}</button>`
-            ).join('');
-            
-            container.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    activeFilter = tab.dataset.filter;
-                    filterAndSearch();
-                });
-            });
-        }
-
-        function filterAndSearch() {
-            let filtered = [...allEpisodes];
-            
-            if (activeFilter !== 'all') {
-                filtered = filtered.filter(ep => (ep.tags || []).map(t => t.toLowerCase()).includes(activeFilter.toLowerCase()));
-            }
-            
-            if (searchQuery) {
-                const q = searchQuery.toLowerCase();
-                filtered = filtered.filter(ep => 
-                    ep.title.toLowerCase().includes(q) ||
-                    (ep.description || '').toLowerCase().includes(q) ||
-                    (ep.tags || []).some(t => t.toLowerCase().includes(q)) ||
-                    (ep.source_url || '').toLowerCase().includes(q)
-                );
-            }
-            
-            const sorted = [...filtered].sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+        function refreshEpisodes() {
+            const sorted = [...allEpisodes].sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
             updateStats(sorted);
-            updateFilterTabs(sorted);
             renderEpisodes(sorted);
         }
 
-        // Search
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            searchQuery = e.target.value.trim();
-            const clearBtn = document.getElementById('searchClear');
-            clearBtn.style.display = searchQuery ? 'flex' : 'none';
-            filterAndSearch();
-        });
-
-        document.getElementById('searchClear').addEventListener('click', () => {
-            document.getElementById('searchInput').value = '';
-            searchQuery = '';
-            document.getElementById('searchClear').style.display = 'none';
-            filterAndSearch();
-        });
-
-        // View toggle (table / cards)
+        // View toggle (cards / table)
         const viewToggle = document.getElementById('viewToggle');
         if (viewToggle) {
             function updateToggleLabel() {
@@ -387,7 +316,7 @@
             viewToggle.addEventListener('click', () => {
                 viewMode = viewMode === 'table' ? 'cards' : 'table';
                 updateToggleLabel();
-                filterAndSearch();
+                refreshEpisodes();
             });
         }
 
@@ -441,8 +370,7 @@
                     return;
                 }
                 
-                updateFilterTabs([...allEpisodes]);
-                renderEpisodes([...allEpisodes].sort((a, b) => new Date(b.published_at) - Date(a.published_at)));
+                renderEpisodes([...allEpisodes].sort((a, b) => new Date(b.published_at) - new Date(a.published_at)));
                 
                 // Inject minimal episode summary into agent greeting
                 const count = allEpisodes.length;
