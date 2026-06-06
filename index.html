@@ -39,6 +39,7 @@
                             <option value="gemma3-1b-it-q4f16_1-MLC">Gemma3 1B (0.7GB)</option>
                             <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC" selected>Llama 3.2 1B (0.9GB)</option>
                         </select>
+                        <button id="speakToggle" class="model-badge speak-toggle" type="button" aria-pressed="false" title="Read replies aloud">🔇 Speak: Off</button>
                     </div>
                 </div>
                 
@@ -71,6 +72,9 @@
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
                     <textarea id="agentChatInput" class="agent-chat-input" placeholder="Ask about our AI/tech episodes, trending topics..." rows="1" disabled autocomplete="off"></textarea>
+                    <button id="agentChatMic" class="agent-chat-mic" disabled aria-label="Dictate with your voice" title="Dictate with your voice">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    </button>
                     <button id="agentChatSend" class="agent-chat-send" disabled aria-label="Send">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>
@@ -476,6 +480,172 @@
             agentChatMessages.scrollTop = agentChatMessages.scrollHeight;
         }
         
+        // == Voice: spoken replies (TTS) + dictation (speech-to-text) ==
+        const synth = window.speechSynthesis || null;
+        let autoSpeak = false;
+        try { autoSpeak = localStorage.getItem('lh_autospeak') === '1'; } catch (e) {}
+        let preferredVoice = null;
+        
+        function pickVoice() {
+            if (!synth) return null;
+            const voices = synth.getVoices();
+            if (!voices || !voices.length) return null;
+            const en = voices.filter(v => /^en/i.test(v.lang));
+            const pool = en.length ? en : voices;
+            // Prefer Edge's "… Online (Natural)" neural voices (edge-tts), then any Natural voice.
+            return pool.find(v => /online.*natural/i.test(v.name)) ||
+                   pool.find(v => /natural/i.test(v.name)) ||
+                   pool.find(v => v.default) ||
+                   pool[0] || null;
+        }
+        if (synth) {
+            preferredVoice = pickVoice();
+            if (typeof synth.addEventListener === 'function') {
+                synth.addEventListener('voiceschanged', () => { preferredVoice = pickVoice(); });
+            }
+        }
+        
+        function cleanForSpeech(text) {
+            return (text || '')
+                .replace(/```[\s\S]*?```/g, ' code snippet ')
+                .replace(/`([^`]+)`/g, '$1')
+                .replace(/\*\*([^*]+)\*\*/g, '$1')
+                .replace(/https?:\/\/\S+/g, 'link')
+                .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+        
+        let speechQueue = [];
+        let speechGen = 0;
+        function stopSpeaking() {
+            speechGen++;
+            speechQueue = [];
+            if (synth) { try { synth.cancel(); } catch (e) {} }
+        }
+        
+        // Split into <=200-char chunks on sentence boundaries (Chrome stops on long utterances)
+        function splitForSpeech(text) {
+            const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [text];
+            const chunks = [];
+            let buf = '';
+            for (const s of sentences) {
+                if (buf && (buf + s).length > 200) { chunks.push(buf.trim()); buf = ''; }
+                buf += s;
+            }
+            if (buf.trim()) chunks.push(buf.trim());
+            return chunks;
+        }
+        
+        function speakNext(gen) {
+            if (gen !== speechGen || !synth || !speechQueue.length) return;
+            const chunk = speechQueue.shift();
+            const utter = new SpeechSynthesisUtterance(chunk);
+            if (preferredVoice) { utter.voice = preferredVoice; utter.lang = preferredVoice.lang; }
+            utter.rate = 1; utter.pitch = 1;
+            utter.onend = () => speakNext(gen);
+            synth.speak(utter);
+        }
+        
+        function speak(text) {
+            if (!synth) return;
+            const clean = cleanForSpeech(text);
+            if (!clean) return;
+            stopSpeaking();
+            if (!preferredVoice) preferredVoice = pickVoice();
+            try { synth.resume(); } catch (e) {}
+            const gen = ++speechGen;
+            speechQueue = splitForSpeech(clean);
+            speakNext(gen);
+        }
+        
+        const speakToggle = document.getElementById('speakToggle');
+        function renderSpeakToggle() {
+            if (!speakToggle) return;
+            speakToggle.textContent = autoSpeak ? '🔊 Speak: On' : '🔇 Speak: Off';
+            speakToggle.classList.toggle('active', autoSpeak);
+            speakToggle.setAttribute('aria-pressed', autoSpeak ? 'true' : 'false');
+        }
+        if (speakToggle) {
+            if (!synth) { speakToggle.style.display = 'none'; }
+            renderSpeakToggle();
+            speakToggle.addEventListener('click', () => {
+                autoSpeak = !autoSpeak;
+                try { localStorage.setItem('lh_autospeak', autoSpeak ? '1' : '0'); } catch (e) {}
+                if (!autoSpeak) stopSpeaking();
+                renderSpeakToggle();
+            });
+        }
+        
+        // Append a "read aloud" button to an assistant reply bubble
+        function addReplayButton(bubble, getText) {
+            if (!synth || !bubble) return;
+            const btn = document.createElement('button');
+            btn.className = 'chat-replay';
+            btn.type = 'button';
+            btn.textContent = '🔊 Read aloud';
+            btn.title = 'Read this reply aloud';
+            btn.setAttribute('aria-label', 'Read this reply aloud');
+            btn.addEventListener('click', () => speak(getText()));
+            bubble.appendChild(btn);
+        }
+        
+        // Dictation via the Web Speech API (webkitSpeechRecognition)
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+        const micBtn = document.getElementById('agentChatMic');
+        let recognition = null;
+        let recognizing = false;
+        let dictationBase = '';
+        
+        function setMicState(on) {
+            recognizing = on;
+            if (!micBtn) return;
+            micBtn.classList.toggle('recording', on);
+            micBtn.title = on ? 'Stop dictation' : 'Dictate with your voice';
+            micBtn.setAttribute('aria-label', micBtn.title);
+        }
+        
+        if (!SR || !micBtn) {
+            if (micBtn) micBtn.style.display = 'none';
+        } else {
+            recognition = new SR();
+            recognition.lang = 'en-US';
+            recognition.interimResults = true;
+            recognition.continuous = false;
+            recognition.maxAlternatives = 1;
+            
+            recognition.addEventListener('result', (e) => {
+                if (!recognizing) return;
+                const finals = [], interims = [];
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                    const t = e.results[i][0].transcript.trim();
+                    if (!t) continue;
+                    (e.results[i].isFinal ? finals : interims).push(t);
+                }
+                if (finals.length) dictationBase = (dictationBase + ' ' + finals.join(' ')).replace(/\s+/g, ' ').trim();
+                heroInput.value = (dictationBase + ' ' + interims.join(' ')).replace(/\s+/g, ' ').trim();
+                heroInput.style.height = 'auto';
+                heroInput.style.height = Math.min(heroInput.scrollHeight, 200) + 'px';
+            });
+            recognition.addEventListener('end', () => { setMicState(false); if (heroInput) heroInput.focus(); });
+            recognition.addEventListener('error', (e) => {
+                setMicState(false);
+                if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                    updateHeroStatus('error', 'Microphone blocked — allow mic access to dictate.');
+                    setTimeout(() => { if (modelLoaded) updateHeroStatus('ready', 'AI ready'); }, 3000);
+                }
+            });
+            
+            micBtn.addEventListener('click', () => {
+                if (!modelLoaded) return;
+                if (recognizing) { recognition.stop(); return; }
+                stopSpeaking();
+                dictationBase = heroInput.value.trim();
+                try { recognition.start(); setMicState(true); }
+                catch (err) { setMicState(false); }
+            });
+        }
+        
         // Typing indicator helpers (inline, no panel references)
         
         // Check WebGPU support immediately (user-initiated flow)
@@ -541,6 +711,7 @@
                 // Enable inputs
                 heroInput.disabled = false;
                 heroSend.disabled = false;
+                if (micBtn && SR) micBtn.disabled = false;
                 const inputRow = document.getElementById('agentChatInputRow');
                 if (inputRow) inputRow.style.display = 'flex';
                 
@@ -616,6 +787,7 @@
                     modelLoaded = true;
                     heroInput.disabled = false;
                     heroSend.disabled = false;
+                    if (micBtn && SR) micBtn.disabled = false;
                     
                     const mb = document.getElementById('modelBadge');
                     if (mb) { mb.innerHTML = `✓ ${newModel.split('-q4')[0]} ready`; mb.style.color = 'var(--success)'; }
@@ -635,6 +807,10 @@
             if (!heroInput || !modelLoaded) return;
             const input = text || heroInput.value.trim();
             if (!input) return;
+            
+            // Stop any in-flight speech or dictation before sending
+            stopSpeaking();
+            if (recognizing && recognition) { setMicState(false); try { recognition.abort(); } catch (e) {} }
             
             // Clear input
             heroInput.value = '';
@@ -715,6 +891,8 @@
                     }
                 }
                 messages.push({ role: 'assistant', content: reply });
+                addReplayButton(bubble, () => reply);
+                if (autoSpeak) speak(reply);
                 updateHeroStatus('ready', 'AI ready');
             } catch (e) {
                 hideElement(typing);
