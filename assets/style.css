@@ -787,19 +787,17 @@ a:hover {
 }
 
 .agent-chat-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 8px;
     color: var(--ink-muted);
     pointer-events: none;
-    margin-top: 8px;
 }
 
 /* Agent chat textarea — full width */
 .agent-chat-input {
     flex: 1;
-    padding: 8px 12px 8px 42px;
+    padding: 8px 12px;
     background: transparent;
     border: none;
     outline: none;
@@ -1621,6 +1619,12 @@ select.voice-select option {
         flex-direction: column;
         text-align: center;
     }
+
+    /* Give the chat input room so the placeholder can wrap to a second
+       line instead of being clipped on narrow screens. */
+    .agent-chat-input {
+        min-height: 44px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1635,6 +1639,11 @@ select.voice-select option {
     .episodes-section-title {
         flex-direction: column;
         gap: var(--space-xs);
+    }
+
+    .agent-chat-input {
+        font-size: 0.9rem;
+        min-height: 46px;
     }
 }
 
@@ -2195,25 +2204,20 @@ select.voice-select option {
     user-select: none;
 }
 
-/* === Persistent "Explore by topic" bar (outside scrollable area) === */
+/* === Persistent "Explore by topic" bar (now in the agent header) === */
 .agent-suggested-topics-bar {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(17, 17, 37, 0.5);
-}
-
-/* === Suggested topic chips (shown after model loads) === */
-.suggested-topics {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(17, 17, 37, 0.5);
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
 }
 
 .suggested-topics-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--ink-muted);
-    margin-bottom: 6px;
-    font-weight: 500;
+    margin: 0;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -2222,6 +2226,7 @@ select.voice-select option {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    justify-content: center;
 }
 
 .topic-chip {

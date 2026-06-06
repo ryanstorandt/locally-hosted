@@ -42,23 +42,21 @@
                         <button id="speakToggle" class="model-badge speak-toggle" type="button" aria-pressed="false" title="Read replies aloud">🔇 Speak: Off</button>
                         <select id="voiceSelect" class="model-badge voice-select" title="Choose the voice used for spoken replies" aria-label="Voice" style="display:none;"></select>
                     </div>
+
+                    <!-- Persistent "Explore by topic" bar (moved into header) -->
+                    <div class="agent-suggested-topics-bar" id="agentSuggestedTopicsBar" style="display:none;">
+                        <p class="suggested-topics-label">Explore by topic:</p>
+                        <div class="suggested-topics-row" id="suggestedTopicsRow"></div>
+                    </div>
+
+                    <!-- Persistent disclaimer (moved into header) -->
+                    <div class="hallucination-disclaimer" id="hallucinationDisclaimer" style="display:none;">⚠️ SLM-powered: funny, fast, and occasionally wrong. It's free tokens after all!</div>
                 </div>
                 
                 
                 <div class="agent-chat-messages" id="agentChatMessages" style="display:none;">
                     <!-- Messages stream here -->
                 </div>
-                
-                <!-- Persistent "Explore by topic" bar (outside scrollable area) -->
-                <div class="agent-suggested-topics-bar" id="agentSuggestedTopicsBar" style="display:none;">
-                    <div class="suggested-topics">
-                        <p class="suggested-topics-label">Explore by topic:</p>
-                        <div class="suggested-topics-row" id="suggestedTopicsRow"></div>
-                    </div>
-                </div>
-                
-                <!-- Persistent disclaimer (always visible during chat) -->
-                <div class="hallucination-disclaimer" id="hallucinationDisclaimer" style="display:none;">⚠️ SLM-powered: funny, fast, and occasionally wrong. It's free tokens after all!</div>
                 
                 <!-- Suggestions shown when no messages yet -->
                 <div class="agent-suggestions" id="agentSuggestions">
@@ -891,7 +889,7 @@
             if (suggestionsEl) suggestionsEl.style.display = 'none';
             // Show persistent bar and disclaimer
             const topicsBar = document.getElementById('agentSuggestedTopicsBar');
-            if (topicsBar) topicsBar.style.display = 'block';
+            if (topicsBar) topicsBar.style.display = 'flex';
             const disclaimer = document.getElementById('hallucinationDisclaimer');
             if (disclaimer) disclaimer.style.display = 'block';
             
@@ -930,6 +928,8 @@
                 if (micBtn && SR) micBtn.disabled = false;
                 const inputRow = document.getElementById('agentChatInputRow');
                 if (inputRow) inputRow.style.display = 'flex';
+                // Row was hidden until now; size it to fit the placeholder.
+                setResponsivePlaceholder();
                 
                 // Hide greeting, show chat
                 if (agentGreeting) agentGreeting.style.display = 'none';
@@ -1247,11 +1247,27 @@
             } 
         });
         
-        // Auto-resize textarea
-        if (heroInput) heroInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-        });
+        // Auto-resize textarea to fit its content (or wrapped placeholder).
+        function autosizeInput() {
+            if (!heroInput) return;
+            heroInput.style.height = 'auto';
+            heroInput.style.height = Math.min(heroInput.scrollHeight, 200) + 'px';
+        }
+        if (heroInput) heroInput.addEventListener('input', autosizeInput);
+
+        // Responsive placeholder — the full prompt wraps and gets clipped on
+        // narrow screens, so use a shorter one there. autosizeInput() then grows
+        // the field to fit whatever placeholder is showing (no clipping).
+        const FULL_PLACEHOLDER = 'Ask about our AI/tech episodes, trending topics…';
+        const SHORT_PLACEHOLDER = 'Ask about our AI episodes…';
+        function setResponsivePlaceholder() {
+            if (!heroInput) return;
+            heroInput.placeholder = window.matchMedia('(max-width: 600px)').matches
+                ? SHORT_PLACEHOLDER : FULL_PLACEHOLDER;
+            autosizeInput();
+        }
+        setResponsivePlaceholder();
+        window.addEventListener('resize', setResponsivePlaceholder);
         
         // Suggestion chips — trigger loadModel if not loaded, else send query
         document.querySelectorAll('.suggestion-chip').forEach(chip => {
