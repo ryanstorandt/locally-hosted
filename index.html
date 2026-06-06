@@ -494,6 +494,17 @@
             /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
             (navigator.maxTouchPoints > 1 && window.matchMedia('(max-width: 820px)').matches);
         let currentModel = 'SmolLM2-135M-Instruct-q0f16-MLC';
+
+        // Cap the KV-cache context window. SmolLM2's default is 8192 tokens, which
+        // allocates a large KV-cache GPU buffer that can exhaust a phone's GPU memory
+        // at load time — surfacing as "Failed to execute 'mapAsync' on 'GPUBuffer':
+        // Buffer was unmapped before mapping was resolved" (an OOM/device-loss symptom).
+        // Our grounded prompt is ~800 tokens, so 2048 fits comfortably while shrinking
+        // the KV buffer 4x. Passed as the 3rd arg (chatOpts) to CreateMLCEngine.
+        const chatOpts = { context_window_size: 2048 };
+        const GEN_MAX_TOKENS = isMobile ? 160 : 200;
+        const GEN_HISTORY = isMobile ? 4 : 6;
+        let isLoading = false;
         
         // Load system instructions from .md file
         try {
@@ -815,6 +826,8 @@
         // Model loading function (user-triggered)
         async function loadModel() {
             if (!startBtn) return;
+            if (isLoading) return; // guard against concurrent loads (re-entrancy can
+            isLoading = true;      // destroy in-flight GPU buffers mid-mapping)
             
             // Show chat area, hide suggestions
             if (agentChatMessages) agentChatMessages.style.display = 'flex';
@@ -837,7 +850,7 @@
                             if (startBtn) startBtn.textContent = `⏳ ${msg.text}`;
                         }
                     }},
-                    'webgpu'
+                    chatOpts
                 );
                 
                 modelLoaded = true;
@@ -888,6 +901,8 @@
                     startBtn.disabled = false;
                     startBtn.textContent = `🚀 Retry Chat (~${sizeOf(currentModel)})`;
                 }
+            } finally {
+                isLoading = false;
             }
         }
         
@@ -929,7 +944,7 @@
                                 updateHeroStatus('loading', `Loading: ${msg.text}`);
                             }
                         }},
-                        'webgpu'
+                        chatOpts
                     );
                     
                     modelLoaded = true;
@@ -1073,8 +1088,8 @@
                 }
                 
                 const completion = await engine.chat.completions.create({
-                    messages: [sysMsg, ...messages.slice(-6)],
-                    temperature: 0.3, max_tokens: 200, stream: true
+                    messages: [sysMsg, ...messages.slice(-GEN_HISTORY)],
+                    temperature: 0.3, max_tokens: GEN_MAX_TOKENS, stream: true
                 });
                 
                 hideElement(typing);
@@ -1108,8 +1123,25 @@
                 updateHeroStatus('ready', 'AI ready');
             } catch (e) {
                 hideElement(typing);
-                addChatMessage('assistant', `⚠️ Error: ${e.message}`);
-                updateHeroStatus('error', 'Error');
+                const msg = (e && e.message) || String(e);
+                // WebGPU dropped the model mid-inference (device lost / OOM). The engine
+                // is dead — dispose it and let the user reload instead of showing a raw error.
+                const deviceLost = /external instance|device.*lost|mapAsync|GPUBuffer|unmapped/i.test(msg);
+                if (deviceLost) {
+                    try { if (engine) await engine.dispose(); } catch (_) {}
+                    engine = null;
+                    modelLoaded = false;
+                    addChatMessage('assistant', '📱 The GPU dropped the model — likely low memory. Tap "🚀 Reload model" below to start it again (already using the lightest model and a compact context window).');
+                    if (startBtn) {
+                        startBtn.style.display = 'block';
+                        startBtn.disabled = false;
+                        startBtn.textContent = `🚀 Reload model (~${sizeOf(currentModel)})`;
+                    }
+                    updateHeroStatus('error', 'GPU lost the model — reload to continue.');
+                } else {
+                    addChatMessage('assistant', `⚠️ Error: ${msg}`);
+                    updateHeroStatus('error', 'Error');
+                }
             }
         }
         
