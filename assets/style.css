@@ -613,6 +613,8 @@ a:hover {
     display: flex;
     gap: 8px;
     justify-content: center;
+    flex-wrap: wrap;
+    max-width: 100%;
 }
 
 .model-badge {
@@ -903,6 +905,18 @@ a:hover {
 .speak-toggle.active {
     border-color: var(--primary);
     color: var(--primary);
+}
+
+/* Voice picker dropdown in header */
+.voice-select {
+    cursor: pointer;
+    max-width: 160px;
+    transition: all var(--transition-fast);
+}
+
+.voice-select:hover {
+    border-color: var(--primary);
+    color: var(--ink);
 }
 
 /* Per-message replay button */

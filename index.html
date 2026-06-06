@@ -40,6 +40,7 @@
                             <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC" selected>Llama 3.2 1B (0.9GB)</option>
                         </select>
                         <button id="speakToggle" class="model-badge speak-toggle" type="button" aria-pressed="false" title="Read replies aloud">🔇 Speak: Off</button>
+                        <select id="voiceSelect" class="model-badge voice-select" title="Choose the voice used for spoken replies" aria-label="Voice" style="display:none;"></select>
                     </div>
                 </div>
                 
@@ -553,24 +554,76 @@
         let autoSpeak = false;
         try { autoSpeak = localStorage.getItem('lh_autospeak') === '1'; } catch (e) {}
         let preferredVoice = null;
-        
-        function pickVoice() {
-            if (!synth) return null;
-            const voices = synth.getVoices();
-            if (!voices || !voices.length) return null;
-            const en = voices.filter(v => /^en/i.test(v.lang));
-            const pool = en.length ? en : voices;
-            // Prefer Edge's "… Online (Natural)" neural voices (edge-tts), then any Natural voice.
-            return pool.find(v => /online.*natural/i.test(v.name)) ||
-                   pool.find(v => /natural/i.test(v.name)) ||
-                   pool.find(v => v.default) ||
-                   pool[0] || null;
+        let savedVoiceURI = null;
+        try { savedVoiceURI = localStorage.getItem('lh_voice') || null; } catch (e) {}
+
+        // Score an en voice: higher = more natural. Demotes robotic SAPI "Desktop" voices.
+        function scoreVoice(v) {
+            const n = (v.name || '') + ' ' + (v.voiceURI || '');
+            let s = 0;
+            if (/online.*natural/i.test(n)) s += 100;   // Edge neural (edge-tts quality)
+            else if (/natural/i.test(n)) s += 70;
+            if (/google/i.test(n)) s += 60;             // Chrome's "Google US English" — decent
+            if (/\b(aria|guy|jenny|emma|ava|andrew|brian|libby|natasha)\b/i.test(n)) s += 15;
+            if (/desktop/i.test(n)) s -= 60;            // robotic SAPI5 (David/Zira Desktop)
+            if (/microsoft (david|zira|mark)\b/i.test(n) && !/online/i.test(n)) s -= 40;
+            if (v.localService === false) s += 10;      // cloud/neural voices
+            if (v.default) s += 5;
+            if (/en[-_]us/i.test(v.lang)) s += 3;
+            return s;
         }
+
+        function enVoices() {
+            if (!synth) return [];
+            const voices = synth.getVoices() || [];
+            const en = voices.filter(v => /^en/i.test(v.lang));
+            return (en.length ? en : voices).slice();
+        }
+
+        function pickVoice() {
+            const pool = enVoices();
+            if (!pool.length) return null;
+            if (savedVoiceURI) {
+                const saved = pool.find(v => v.voiceURI === savedVoiceURI);
+                if (saved) return saved;
+            }
+            return pool.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0] || null;
+        }
+
+        const voiceSelect = document.getElementById('voiceSelect');
+        function populateVoiceDropdown() {
+            if (!voiceSelect) return;
+            const pool = enVoices().sort((a, b) => scoreVoice(b) - scoreVoice(a));
+            if (!pool.length) { voiceSelect.style.display = 'none'; return; }
+            const current = preferredVoice ? preferredVoice.voiceURI : '';
+            voiceSelect.innerHTML = pool.map(v => {
+                const label = v.name.replace(/\s*\(.*?\)\s*$/, '').replace(/Microsoft\s+/i, '');
+                const sel = v.voiceURI === current ? ' selected' : '';
+                return `<option value="${v.voiceURI}"${sel}>${label}</option>`;
+            }).join('');
+            voiceSelect.style.display = '';
+        }
+
         if (synth) {
             preferredVoice = pickVoice();
+            populateVoiceDropdown();
             if (typeof synth.addEventListener === 'function') {
-                synth.addEventListener('voiceschanged', () => { preferredVoice = pickVoice(); });
+                synth.addEventListener('voiceschanged', () => {
+                    preferredVoice = pickVoice();
+                    populateVoiceDropdown();
+                });
             }
+        }
+        if (voiceSelect) {
+            voiceSelect.addEventListener('change', () => {
+                const chosen = enVoices().find(v => v.voiceURI === voiceSelect.value);
+                if (!chosen) return;
+                preferredVoice = chosen;
+                savedVoiceURI = chosen.voiceURI;
+                try { localStorage.setItem('lh_voice', chosen.voiceURI); } catch (e) {}
+                stopSpeaking();
+                speak(`Hi, this is ${chosen.name.replace(/Microsoft\s+/i, '').replace(/\s*\(.*?\)\s*$/, '').split(/[\s-]/)[0]}.`);
+            });
         }
         
         function cleanForSpeech(text) {
