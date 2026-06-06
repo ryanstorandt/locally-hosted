@@ -27,7 +27,7 @@
                 <div class="agent-chat-header">
                     <div class="agent-chat-badge">
                         <span class="hero-badge-dot" id="modelStatusDot"></span>
-                        <span class="agent-chat-label" id="modelStatusText">Connecting to AI model...</span>
+                        <span class="agent-chat-label" id="modelStatusText">Waiting to download AI model...</span>
                     </div>
                     <div class="agent-chat-badges" id="modelBadges" style="display:none;">
                         <span class="model-badge" id="modelBadge"></span>
@@ -43,8 +43,12 @@
                 </div>
                 
                 
-                <div class="agent-chat-messages" id="agentChatMessages">
+                <div class="agent-chat-messages" id="agentChatMessages" style="display:none;">
                     <!-- Messages stream here -->
+                    <button class="start-chat-btn" id="startChatBtn" style="display:inline-flex;">🚀 Start Chatting (~300MB)</button>
+                    <div class="clear-models-link" style="font-size: 0.85rem; margin-top: 6px; text-align: center;">
+                        <span>🗑 Clear models: DevTools → Application → Storage → Clear site data</span>
+                    </div>
                 </div>
                 
                 <!-- Suggestions shown when no messages yet -->
@@ -54,10 +58,6 @@
                         AI-powered, runs in your browser — no API keys, no cloud
                     </div>
                     <p class="agent-greeting-text" id="agentGreetingText">Ask me about our AI/tech episodes, trending topics, or the repo.</p>
-                    <button class="start-chat-btn" id="startChatBtn">🚀 Start Chatting (~300MB)</button>
-                    <div class="clear-models-link" style="font-size: 0.85rem; margin-top: 6px;">
-                        <span>🗑 Clear models: DevTools → Application → Storage → Clear site data</span>
-                    </div>
                     <div class="suggestions-row">
                         <button class="suggestion-chip" data-query="What episodes do I have?">📺 Episodes</button>
                         <button class="suggestion-chip" data-query="Show me my latest content">🆕 Latest</button>
@@ -66,7 +66,7 @@
                     </div>
                 </div>
                 
-                <div class="agent-chat-input-row" id="agentChatInputRow">
+                <div class="agent-chat-input-row" id="agentChatInputRow" style="display:none;">
                     <svg class="agent-chat-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
@@ -580,6 +580,11 @@
         // Model loading function (user-triggered)
         async function loadModel() {
             if (!startBtn) return;
+            
+            // Show chat area, hide suggestions
+            if (agentChatMessages) agentChatMessages.style.display = 'flex';
+            if (suggestionsEl) suggestionsEl.style.display = 'none';
+            
             startBtn.disabled = true;
             startBtn.textContent = '⏳ Downloading model...';
             updateHeroStatus('loading', 'Downloading model (~300MB)...');
@@ -610,6 +615,8 @@
                 // Enable inputs
                 heroInput.disabled = false;
                 heroSend.disabled = false;
+                const inputRow = document.getElementById('agentChatInputRow');
+                if (inputRow) inputRow.style.display = 'flex';
                 
                 // Hide greeting, show chat
                 if (agentGreeting) agentGreeting.style.display = 'none';
