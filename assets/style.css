@@ -905,6 +905,18 @@ a:hover {
     color: var(--primary);
 }
 
+/* Voice picker dropdown in header */
+.voice-select {
+    cursor: pointer;
+    max-width: 160px;
+    transition: all var(--transition-fast);
+}
+
+.voice-select:hover {
+    border-color: var(--primary);
+    color: var(--ink);
+}
+
 /* Per-message replay button */
 .chat-replay {
     display: block;
