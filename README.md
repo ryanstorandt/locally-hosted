@@ -23,6 +23,8 @@ Submit a tech article (arXiv paper, GitHub repo, blog post, Hacker News) and the
 ## Features
 
 - **AI Agent** — In-browser AI assistant powered by WebLLM with model picker (SmolLM2, TinyLlama, Gemma3, Llama 3.2)
+- **Voice dictation** — Speak your question with the mic button (Web Speech API, fully in-browser)
+- **Spoken replies** — Optional text-to-speech read-aloud of agent answers (`speechSynthesis`), preferring Edge's natural neural voices; toggle on/off or replay any message
 - **Model Picker** — Choose from 5 models under 1GB VRAM (SmolLM2 135M/360M, TinyLlama 1.1B, Gemma3 1B, Llama 3.2 1B)
 - **WebGPU-accelerated** — Runs entirely in your browser, no API keys needed
 - **Works offline** after first model download
