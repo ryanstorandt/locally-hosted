@@ -1219,6 +1219,7 @@ a:hover {
 
 .card-thumbnail-wrapper {
     position: relative;
+    display: block;
     width: 100%;
     aspect-ratio: 16/9;
     overflow: hidden;

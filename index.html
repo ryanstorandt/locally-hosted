@@ -236,12 +236,14 @@
                 ? `<a href="${ep.source_url}" class="episode-source" target="_blank" rel="noopener">Source ↗</a>` 
                 : '';
             const youtubeId = ep.youtube_id || ep.youtube_url?.split('v=')?.pop()?.split('&')[0] || '';
-            const thumbnailSrc = ep.thumbnail ? `/episodes/${ep.id}/thumbnail.png` : '';
+            const localThumb = ep.thumbnail ? `/episodes/${ep.id}/thumbnail.png` : '';
+            const ytThumbUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : '';
+            const thumbnailSrc = localThumb || ytThumbUrl;
             
             return `
                 <article class="episode-card" data-id="${ep.id}" data-tags="${(ep.tags || []).join(',').toLowerCase()}">
-                    <div class="card-thumbnail-wrapper">
-                        ${ep.thumbnail 
+                    <a class="card-thumbnail-wrapper" href="./episodes/index.html?id=${ep.id}" aria-label="${ep.title}">
+                        ${thumbnailSrc 
                             ? `<img src="${thumbnailSrc}" alt="" class="episode-thumbnail" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                                <div class="thumbnail-placeholder" style="display:none;background:linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);">
                                     <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(129,140,248,0.4)" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -249,7 +251,7 @@
                             : `<div class="thumbnail-placeholder gradient-alt"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(129,140,248,0.3)" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`
                         }
                         ${youtubeId ? `<div class="play-button"><svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg></div>` : ''}
-                    </div>
+                    </a>
                     <div class="card-body">
                         <div class="card-meta-row">
                             <span class="episode-date">${date}</span>
@@ -374,7 +376,7 @@
                     return;
                 }
                 
-                renderEpisodes([...allEpisodes].sort((a, b) => new Date(b.published_at) - new Date(a.published_at)));
+                refreshEpisodes();
                 
                 // Inject minimal episode summary into agent greeting
                 const count = allEpisodes.length;
