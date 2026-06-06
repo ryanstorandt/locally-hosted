@@ -46,10 +46,12 @@ Models are stored **in your browser**, not on this machine:
 
 ### Clear downloaded models
 
-1. Open DevTools (F12)
-2. Go to **Application** (Chrome) or **Storage** (Edge)
-3. Click **Clear site data** at the top
-4. Confirm
+**Chrome DevTools (verified):**
+1. Open DevTools (F12) → Application → Storage → **Clear site data** → Confirm
+
+**Chrome address bar (verified):**
+1. Click the 🔒/ℹ icon left of the address bar
+2. **Cookies and site data** → **Manage / Delete** → Delete for `ryanstorandt.github.io`
 
 This wipes all cached models for this site instantly. No restart needed.
 
