@@ -517,11 +517,14 @@
         // allocates a large KV-cache GPU buffer that can exhaust a phone's GPU memory
         // at load time — surfacing as "Failed to execute 'mapAsync' on 'GPUBuffer':
         // Buffer was unmapped before mapping was resolved" (an OOM/device-loss symptom).
-        // Phones get an even tighter window (512) so the pre-allocated KV cache
-        // leaves headroom for the transient compute buffers used during
-        // generation; our trimmed mobile prompt stays well under it. This is the
-        // single biggest mobile memory cut. Passed as the 3rd arg (chatOpts).
-        const chatOpts = { context_window_size: isMobile ? 512 : 2048 };
+        // Phones get a tighter window (1024) to keep the pre-allocated KV cache small
+        // while still fitting our grounded prompt: the system instructions (~215
+        // tokens) plus 3 retrieved episodes routinely reach ~600 tokens, so 512 was
+        // too small (ContextWindowSizeExceededError) once generation tokens are added.
+        // 1024 leaves headroom (prompt + GEN_MAX_TOKENS) and the q4f32_1 model's KV
+        // cache at 1024 (~80MB) stays under the Adreno 128MB binding limit observed in
+        // the diagnostic. Passed as the 3rd arg (chatOpts).
+        const chatOpts = { context_window_size: isMobile ? 1024 : 2048 };
         const GEN_MAX_TOKENS = isMobile ? 128 : 200;
         const GEN_HISTORY = isMobile ? 2 : 6;
         let isLoading = false;
@@ -1345,6 +1348,7 @@
                 // WebGPU dropped the model mid-inference (device lost / OOM). The engine
                 // is dead — dispose it and let the user reload instead of showing a raw error.
                 const deviceLost = /external instance|device.*lost|mapAsync|GPUBuffer|unmapped/i.test(msg);
+                const contextExceeded = /ContextWindowSizeExceeded|exceed context window|prompt tokens exceed/i.test(msg);
                 if (deviceLost) {
                     try { if (engine) await engine.dispose(); } catch (_) {}
                     // GPU device is gone — also tear down the worker so the next
@@ -1355,6 +1359,12 @@
                     modelLoaded = false;
                     addReloadButton('📱 The GPU dropped the model — likely low memory or an Android f16 driver bug. Tap below to reload, or switch to the mobile-safe model (SmolLM2 360M · q4f32_1) from the dropdown. Run the WebGPU diagnostic to see your device limits.');
                     updateHeroStatus('error', 'GPU lost the model — reload to continue.');
+                } else if (contextExceeded) {
+                    // Recoverable: the engine is still alive, the prompt just pulled in
+                    // more context than the mobile window holds. Don't tear anything
+                    // down — ask for a shorter question instead of a raw error.
+                    addChatMessage('assistant', '📱 That question pulled in too much context for this phone’s small window. Try a shorter or more specific question (e.g. ask about one episode), or pick a larger model from the dropdown.');
+                    updateHeroStatus('ready', 'Podcast Agent Ready');
                 } else {
                     addChatMessage('assistant', `⚠️ Error: ${msg}`);
                     updateHeroStatus('error', 'Error');
