@@ -1,5 +1,22 @@
 [
   {
+    "id": "ep061",
+    "title": "OpenClaw for Windows: AI Companion Suite, Tray App & PowerToys Extension",
+    "description": "Ready to supercharge your Windows desktop with AI? In this episode, Alex and Sam dive into openclaw/openclaw-windows-node, a game-changing companion suite that brings OpenClaw's power right to your system tray and PowerToys!",
+    "source_url": "https://github.com/openclaw/openclaw-windows-node",
+    "youtube_short_url": "https://youtube.com/shorts/kZ_Cnc-AhXA?feature=share",
+    "youtube_url": "https://www.youtube.com/watch?v=1eCOmAOJgWA",
+    "spotify_url": "",
+    "tags": [
+      "OpenClaw",
+      "openclaw windows node",
+      "OpenClaw review",
+      "Windows AI tools",
+      "OpenSource AI"
+    ],
+    "published_at": "2026-06-06T22:57:35.000Z"
+  },
+  {
     "id": "ep060",
     "title": "Miasma Malware Reaches Azure: 73 Microsoft Repos Gone in Seconds",
     "description": "Microsoft just got hit by a digital blight! In today's episode, Alex and Sam break down how the Miasma campaign rapidly disabled 73 Microsoft repositories in under two minutes, and what it means for Azure and open source security.",
