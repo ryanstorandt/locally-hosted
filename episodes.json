@@ -1,5 +1,22 @@
 [
   {
+    "id": "ep062",
+    "title": "Microsoft Edge’s On-Device AI Leap: New APIs & Models",
+    "description": "Microsoft Edge is ditching the cloud for AI",
+    "source_url": "https://blogs.windows.com/msedgedev/2026/06/02/expanding-on-device-ai-in-microsoft-edge-new-models-and-apis-for-the-web/",
+    "youtube_short_url": "https://youtube.com/shorts/FbIrsZaUGX4?feature=share",
+    "youtube_url": "https://www.youtube.com/watch?v=YILMwzVqhvA",
+    "spotify_url": "",
+    "tags": [
+      "Microsoft Edge",
+      "On-Device AI",
+      "Edge AI",
+      "Local AI",
+      "Web APIs"
+    ],
+    "published_at": "2026-06-07T16:30:19.000Z"
+  },
+  {
     "id": "ep061",
     "title": "OpenClaw for Windows: AI Companion Suite, Tray App & PowerToys Extension",
     "description": "Ready to supercharge your Windows desktop with AI? In this episode, Alex and Sam dive into openclaw/openclaw-windows-node, a game-changing companion suite that brings OpenClaw's power right to your system tray and PowerToys!",
