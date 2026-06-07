@@ -1,5 +1,39 @@
 [
   {
+    "id": "ep064",
+    "title": "Run AI Locally on Windows with New Microsoft AI APIs",
+    "description": "What if you could run powerful AI models right on your Windows PC without sending data to the cloud? In this episode of Locally Hosted, Alex and Sam dive into Microsoft's latest Windows AI APIs!",
+    "source_url": "https://learn.microsoft.com/en-us/windows/ai/apis/",
+    "youtube_short_url": "https://youtube.com/shorts/M_qyMHOWpMM?feature=share",
+    "youtube_url": "https://www.youtube.com/watch?v=mjkKnKAntXU",
+    "spotify_url": "",
+    "tags": [
+      "Windows AI APIs",
+      "Run AI Locally",
+      "Windows Machine Learning",
+      "Local AI Models",
+      "Microsoft AI"
+    ],
+    "published_at": "2026-06-07T18:53:36.000Z"
+  },
+  {
+    "id": "ep063",
+    "title": "Edge's Prompt API: Run Local AI Directly in Your Browser",
+    "description": "What if you could run AI models directly in your browser without sending data to the cloud? In this episode, Alex and Sam break down Microsoft Edge’s experimental Prompt API and what it means for local AI.",
+    "source_url": "https://learn.microsoft.com/en-us/microsoft-edge/web-platform/prompt-api",
+    "youtube_short_url": "https://youtube.com/shorts/M_qyMHOWpMM?feature=share",
+    "youtube_url": "https://www.youtube.com/watch?v=IgJdYbCkF90",
+    "spotify_url": "",
+    "tags": [
+      "Local AI",
+      "Microsoft Edge",
+      "Prompt API",
+      "Edge Canary",
+      "On-Device AI"
+    ],
+    "published_at": "2026-06-07T17:37:27.000Z"
+  },
+  {
     "id": "ep062",
     "title": "Microsoft Edge’s On-Device AI Leap: New APIs & Models",
     "description": "Microsoft Edge is ditching the cloud for AI",
